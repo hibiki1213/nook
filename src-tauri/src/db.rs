@@ -203,6 +203,7 @@ mod tests {
             max: None,
             currency: None,
             app: None,
+            remind: false,
         });
         ensure_table(&conn, &def).unwrap();
 

@@ -39,20 +39,24 @@ The database file (macOS):
       "default": "未着手",      // optional — pre-filled in the UI form
       "max": 5,                 // optional — stars for `rating` (default 5)
       "currency": "JPY",        // optional — ISO 4217 for `money` (default JPY)
-      "app": "books"            // required for `relation` — target app id
+      "app": "books",           // required for `relation` — target app id
+      "remind": true            // date fields only — notify when the date arrives
     }
   ],
   "views": [
     {
       "id": "all",
       "name": "すべて",
-      "type": "table",          // table | board | calendar | gallery | summary
+      // table | board | calendar | gallery | summary | chart | heatmap
+      "type": "table",
       "columns": ["status"],    // table: field ids shown as columns
       "sort": [{ "field": "status", "dir": "asc" }],
       "groupBy": "status",      // board: select-field id to group by
-      "dateField": "due",       // calendar: date-field id to place records on
+      "dateField": "due",       // calendar/chart/heatmap: date-field id
       "imageField": "cover",    // gallery: image-field id used as the card image
-      "metric": { "field": "amount", "fn": "sum" }  // summary: aggregate (fn: sum|avg|count|min|max)
+      "metric": { "field": "amount", "fn": "sum" },  // summary/chart/heatmap aggregate (fn: sum|avg|count|min|max)
+      "chartType": "line",      // chart: line | area
+      "bucket": "month"         // chart x-axis bucket: day | week | month
     }
   ]
 }
@@ -69,6 +73,12 @@ The database file (macOS):
 - **summary** — aggregate `metric` (`fn` over a number/`money` `field`; `count`
   needs no field) shown as a total, and — when `groupBy` is set — broken down per
   group with bars. A `money` metric field formats the result as currency.
+- **chart** — the `metric` aggregated over time: one point per `bucket`
+  (`day`/`week`/`month`) of `dateField`, drawn as a `line` or `area` (`chartType`).
+  For trends — weight, spending, mood over time.
+- **heatmap** — a GitHub-contribution-style year grid coloring each day by the
+  `metric` over `dateField` (`count` by default). For habit/streak tracking.
+  Only same-day intensity; navigate years in the toolbar.
 
 ## Storage model — JSON + generated columns
 
@@ -105,6 +115,19 @@ CREATE INDEX "ix_tasks_status" ON "d_tasks" ("f_status");  -- when indexed: true
   integer id** in the app named by the field's `app`; the renderer shows the
   target's title (its first text field). There is no referential integrity:
   deleting the target record/app leaves a dangling id, shown as `#<id>`.
+
+## Reminders
+
+A `date` field with `remind: true` marks records as **due** on the day the
+stored date equals today (local time). Two surfaces, both implemented in the
+desktop app (`src-tauri/src/reminders.rs`):
+
+- a per-app badge in the sidebar (the UI polls `due_counts`), and
+- one OS notification per app per day while the app is running (a background
+  thread scans every 5 minutes; dedupe state lives in the `settings` table, so
+  restarting the app the same day does not re-notify).
+
+Overdue (past) dates are deliberately not notified — only same-day.
 - **Detecting existing columns uses `PRAGMA table_xinfo`, not `table_info`** —
   `table_info` omits generated columns, which would cause duplicate-column errors on
   the next `ensure_table`.

@@ -30,6 +30,15 @@ export interface Field {
   currency?: string;
   /** Target app id for a `relation` field. */
   app?: string;
+  /** date fields: badge + OS-notify when the date arrives. */
+  remind?: boolean;
+}
+
+/** Per-app "due today" count (reminded date fields). */
+export interface DueApp {
+  appId: string;
+  appName: string;
+  count: number;
 }
 
 export interface SortSpec {
@@ -45,20 +54,27 @@ export interface Metric {
   fn?: MetricFn;
 }
 
+export type ChartType = "line" | "area";
+export type Bucket = "day" | "week" | "month";
+
 export interface View {
   id: string;
   name: string;
-  type?: "table" | "board" | "calendar" | "gallery" | "summary";
+  type?: "table" | "board" | "calendar" | "gallery" | "summary" | "chart" | "heatmap";
   columns?: string[];
   sort?: SortSpec[];
   /** select-field id to group by (board; also summary grouping). */
   groupBy?: string;
-  /** date-field id records are placed on (calendar). */
+  /** date-field id records are placed on (calendar; x-axis for chart/heatmap). */
   dateField?: string;
   /** image-field id shown as the card image (gallery). */
   imageField?: string;
-  /** aggregate shown by a summary view. */
+  /** aggregate shown by a summary/chart/heatmap view. */
   metric?: Metric;
+  /** chart style (chart view). */
+  chartType?: ChartType;
+  /** time bucket for a chart x-axis (chart view). */
+  bucket?: Bucket;
 }
 
 export interface AppDefinition {

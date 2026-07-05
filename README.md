@@ -138,8 +138,9 @@ docs/app-definition.md   the shared declarative spec
   (currency-formatted number), rating (stars), tags (multi-label), image
   (thumbnail; pick from PC or URL), relation (link to another app's record).
 - Views: table (columns + sort), board (group by a select field), calendar (by a
-  date field), gallery (image cards), and summary (aggregate a number/money field,
-  optionally grouped). No drag-and-drop yet.
+  date field), gallery (image cards), summary (aggregate a number/money field,
+  optionally grouped), chart (time-series line/area), and heatmap (GitHub-style
+  year grid). No drag-and-drop yet.
 - **Single writer:** the Nook app is the only process that opens SQLite, so there's no
   cross-process contention to reason about. The MCP server is a stateless HTTP client.
 - **Why this shape?** The MCP extension must be free of native modules

@@ -70,6 +70,13 @@ pub fn delete_record(app_id: String, id: i64) -> CmdResult<Value> {
     Ok(repo::delete_record(&app_id, id)?)
 }
 
+/// Per-app counts of records due today (reminded date fields) for the sidebar.
+#[tauri::command]
+pub fn due_counts() -> CmdResult<Vec<crate::reminders::DueApp>> {
+    let conn = crate::db::open()?;
+    Ok(crate::reminders::due_today(&conn)?)
+}
+
 /// Copy a picked image file into the app's images dir; returns `nook-img://<name>`.
 #[tauri::command]
 pub fn import_image(src_path: String) -> CmdResult<String> {

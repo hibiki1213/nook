@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type MutableRefObject,
+} from "react";
 import { Button, Spinner } from "@emobi/ui";
 import {
   getApp,
@@ -10,12 +16,17 @@ import {
 } from "../api";
 import type { AppDefinition, RecordRow } from "../types";
 import { Modal } from "./primitives";
+import { Menu } from "./Menu";
+import { PlusIcon, MoreIcon, TrashIcon } from "./icons";
+import { useToast } from "./Toast";
 import { RelationProvider } from "./relations";
 import { TableView } from "./TableView";
 import { BoardView } from "./BoardView";
 import { CalendarView } from "./CalendarView";
 import { GalleryView } from "./GalleryView";
 import { SummaryView } from "./SummaryView";
+import { ChartView } from "./ChartView";
+import { HeatmapView } from "./HeatmapView";
 import { RecordModal } from "./RecordModal";
 
 // `undefined` = modal closed, `null` = creating, RecordRow = editing.
@@ -24,23 +35,29 @@ type Editing = RecordRow | null | undefined;
 export function AppView({
   appId,
   onDeleted,
+  newRecordRef,
 }: {
   appId: string;
   onDeleted?: () => void;
+  newRecordRef?: MutableRefObject<(() => void) | null>;
 }) {
   const [def, setDef] = useState<AppDefinition | null>(null);
   const [viewId, setViewId] = useState<string>("");
   const [records, setRecords] = useState<RecordRow[]>([]);
+  // First-load flag so the empty state doesn't flash before records arrive.
+  const [recordsLoaded, setRecordsLoaded] = useState(false);
   const [editing, setEditing] = useState<Editing>(undefined);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const editingRef = useRef<Editing>(undefined);
   editingRef.current = editing;
+  const toast = useToast();
 
   // Load the definition whenever the selected app changes.
   useEffect(() => {
     let alive = true;
     setDef(null);
+    setRecordsLoaded(false);
     (async () => {
       const d = await getApp(appId);
       if (!alive) return;
@@ -55,6 +72,7 @@ export function AppView({
   const reload = useCallback(async () => {
     const rows = await listRecords(appId, viewId || undefined);
     setRecords(rows);
+    setRecordsLoaded(true);
   }, [appId, viewId]);
 
   useEffect(() => {
@@ -70,6 +88,29 @@ export function AppView({
     return () => clearInterval(t);
   }, [reload]);
 
+  // ⌘N / Ctrl+N — new record (only when no modal is open).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "n") {
+        if (editingRef.current === undefined) {
+          e.preventDefault();
+          setEditing(null);
+        }
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  // Let the command palette open a new record in this app.
+  useEffect(() => {
+    if (!newRecordRef) return;
+    newRecordRef.current = () => setEditing(null);
+    return () => {
+      newRecordRef.current = null;
+    };
+  }, [newRecordRef]);
+
   if (!def) {
     return (
       <div className="nk-loading">
@@ -81,13 +122,40 @@ export function AppView({
   const view = def.views.find((v) => v.id === viewId) ?? def.views[0];
 
   const onSave = async (data: Record<string, unknown>, id?: number) => {
-    if (id != null) await updateRecord(appId, id, data);
-    else await createRecord(appId, data);
-    await reload();
+    try {
+      if (id != null) await updateRecord(appId, id, data);
+      else await createRecord(appId, data);
+      await reload();
+      toast(id != null ? "保存しました" : "追加しました", { type: "success" });
+    } catch (e) {
+      toast(`保存に失敗しました: ${e instanceof Error ? e.message : e}`, {
+        type: "error",
+      });
+      throw e; // keep the modal open
+    }
   };
+  // Delete with an Undo affordance (HIG: destructive actions should be reversible).
   const onDelete = async (id: number) => {
-    await deleteRecord(appId, id);
-    await reload();
+    const doomed = records.find((r) => r.id === id);
+    try {
+      await deleteRecord(appId, id);
+      await reload();
+      toast("レコードを削除しました", {
+        action: doomed
+          ? {
+              label: "取り消す",
+              onClick: async () => {
+                await createRecord(appId, doomed.data);
+                await reload();
+              },
+            }
+          : undefined,
+      });
+    } catch (e) {
+      toast(`削除に失敗しました: ${e instanceof Error ? e.message : e}`, {
+        type: "error",
+      });
+    }
   };
   const onToggle = async (r: RecordRow, fieldId: string, checked: boolean) => {
     await updateRecord(appId, r.id, { ...r.data, [fieldId]: checked });
@@ -107,7 +175,7 @@ export function AppView({
   return (
     <RelationProvider app={def}>
     <div className="nk-appview">
-      <header className="nk-appheader">
+      <header className="nk-appheader" data-tauri-drag-region>
         <div className="nk-appheader-title">
           <span className="nk-appheader-icon">{def.icon ?? "🗂"}</span>
           <div>
@@ -129,29 +197,52 @@ export function AppView({
               ))}
             </div>
           )}
-          <Button variant="primary" onClick={() => setEditing(null)}>
-            ＋ 新規
-          </Button>
           <Button
-            variant="ghost"
-            iconOnly
-            leftIcon={<span aria-hidden>🗑</span>}
-            aria-label="アプリを削除"
-            title="アプリを削除"
-            onClick={() => setConfirmDelete(true)}
+            variant="primary"
+            leftIcon={<PlusIcon size={16} />}
+            onClick={() => setEditing(null)}
+          >
+            新規
+          </Button>
+          <Menu
+            label="その他"
+            align="right"
+            trigger={<MoreIcon size={18} />}
+            items={[
+              {
+                label: "アプリを削除",
+                danger: true,
+                icon: <TrashIcon size={15} />,
+                onClick: () => setConfirmDelete(true),
+              },
+            ]}
           />
         </div>
       </header>
 
       <div className="nk-appbody">
-        {view?.type === "board" ? (
+        {!recordsLoaded ? (
+          <div className="nk-loading">
+            <Spinner />
+          </div>
+        ) : view?.type === "board" ? (
           <BoardView app={def} view={view} records={records} onOpen={setEditing} />
         ) : view?.type === "calendar" ? (
           <CalendarView app={def} view={view} records={records} onOpen={setEditing} />
         ) : view?.type === "gallery" ? (
-          <GalleryView app={def} view={view} records={records} onOpen={setEditing} />
+          <GalleryView
+            app={def}
+            view={view}
+            records={records}
+            onOpen={setEditing}
+            onCreate={() => setEditing(null)}
+          />
         ) : view?.type === "summary" ? (
           <SummaryView app={def} view={view} records={records} />
+        ) : view?.type === "chart" ? (
+          <ChartView app={def} view={view} records={records} />
+        ) : view?.type === "heatmap" ? (
+          <HeatmapView app={def} view={view} records={records} />
         ) : (
           <TableView
             app={def}
@@ -159,6 +250,8 @@ export function AppView({
             records={records}
             onOpen={setEditing}
             onToggle={onToggle}
+            onCreate={() => setEditing(null)}
+            onDelete={onDelete}
           />
         )}
       </div>

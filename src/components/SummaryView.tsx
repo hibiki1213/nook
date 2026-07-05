@@ -1,5 +1,6 @@
 import { Card } from "@emobi/ui";
 import { formatMoney } from "../lib/format";
+import { aggregate } from "../lib/metric";
 import { barColor } from "../lib/palette";
 import type { AppDefinition, Field, MetricFn, RecordRow, View } from "../types";
 
@@ -10,21 +11,6 @@ const FN_LABEL: Record<MetricFn, string> = {
   min: "最小",
   max: "最大",
 };
-
-function aggregate(nums: number[], fn: MetricFn): number {
-  if (fn === "count") return nums.length;
-  if (!nums.length) return 0;
-  switch (fn) {
-    case "sum":
-      return nums.reduce((a, b) => a + b, 0);
-    case "avg":
-      return nums.reduce((a, b) => a + b, 0) / nums.length;
-    case "min":
-      return Math.min(...nums);
-    case "max":
-      return Math.max(...nums);
-  }
-}
 
 /** Format an aggregate for display, honoring a money metric field's currency. */
 function fmt(value: number, fn: MetricFn, field?: Field): string {

@@ -11,7 +11,8 @@ body,
 body {
   font-family: var(--font-family);
   color: var(--text-primary);
-  background: var(--bg-primary);
+  /* Transparent so the macOS vibrancy layer shows through the sidebar. */
+  background: transparent;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -21,15 +22,45 @@ body {
   overflow: hidden;
 }
 
+/* Dark-mode surface retune. The design system's dark grays bottom out near
+   black (#111), which makes the content area feel oppressive and collapses the
+   sidebar/content separation. Nudge the surface + border tokens to a softer,
+   more Apple-like charcoal ramp. Text tokens are left to the design system. */
+[data-theme="dark"] {
+  --bg-primary: #1c1c1e; /* content & cards — was ~#111 (too black) */
+  --bg-secondary: #242428; /* sidebar / table headers / board columns */
+  --bg-tertiary: #2d2d32; /* hover, chips, inert fills */
+  --bg-quaternary: #37373d;
+  --border-light: #313137; /* dividers that actually read on dark */
+  --border-medium: #3b3b42;
+  --border-strong: #4a4a52; /* input outlines */
+}
+
 /* ── Sidebar ─────────────────────────────────────────────────────────────── */
 .nk-sidebar {
   width: 248px;
   flex-shrink: 0;
-  background: var(--bg-secondary);
+  /* Translucent over the vibrancy layer; degrades to a solid-ish panel if
+     vibrancy is unavailable. */
+  background: color-mix(in srgb, var(--bg-secondary) 68%, transparent);
   border-right: 1px solid var(--border-light);
   display: flex;
   flex-direction: column;
-  padding: var(--space-3);
+  padding: 0 var(--space-3) var(--space-3);
+}
+
+/* In dark mode the translucent sidebar over a dark vibrancy layer gets muddy
+   and low-contrast — make it a mostly-solid panel (keep a hint of vibrancy)
+   and strengthen the divider so it separates cleanly from the content. */
+[data-theme="dark"] .nk-sidebar {
+  background: color-mix(in srgb, var(--bg-secondary) 88%, transparent);
+  border-right-color: var(--border-medium);
+}
+
+/* Drag strip clearing the overlaid traffic lights (macOS). */
+.nk-titlebar-drag {
+  height: 30px;
+  flex-shrink: 0;
 }
 
 .nk-brand {
@@ -87,13 +118,27 @@ body {
   font-weight: var(--font-weight-medium);
 }
 .nk-app-icon {
-  font-size: var(--font-size-md);
+  font-size: var(--font-size-sm);
   line-height: 1;
 }
 .nk-app-name {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.nk-app-due {
+  margin-left: auto;
+  min-width: 18px;
+  padding: 1px 5px;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent-9);
+  color: var(--text-inverted);
+  font-size: var(--font-size-xxs);
+  font-weight: var(--font-weight-semibold);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
 }
 
 .nk-sidebar-foot {
@@ -144,6 +189,39 @@ body {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
+/* Theme toggle (light / dark / system segmented control) */
+.nk-theme-toggle {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  margin: var(--space-2) var(--space-2) 0;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-md);
+}
+.nk-theme-opt {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-1) 0;
+  border: none;
+  background: transparent;
+  color: var(--text-tertiary);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition:
+    background var(--duration-fast) var(--easing-default),
+    color var(--duration-fast) var(--easing-default);
+}
+.nk-theme-opt:hover {
+  color: var(--text-secondary);
+}
+.nk-theme-opt.is-active {
+  background: var(--bg-primary);
+  color: var(--text-accent);
+  box-shadow: var(--shadow-sm);
+}
+
 /* ── Main / app view ─────────────────────────────────────────────────────── */
 .nk-main {
   flex: 1;
@@ -159,24 +237,33 @@ body {
 
 .nk-appheader {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: var(--space-4);
-  padding: var(--space-5) var(--space-6);
+  padding: var(--space-4) var(--space-6);
   border-bottom: 1px solid var(--border-light);
 }
 .nk-appheader-title {
   display: flex;
   gap: var(--space-3);
   align-items: center;
+  min-width: 0;
+}
+.nk-appheader-title > div {
+  min-width: 0;
+}
+.nk-appheader-title h1 {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .nk-appheader-icon {
-  font-size: var(--font-size-3xl);
+  font-size: var(--font-size-xxl);
   line-height: 1;
 }
 .nk-appheader-title h1 {
   margin: 0;
-  font-size: var(--font-size-xl);
+  font-size: var(--font-size-lg);
   font-weight: var(--font-weight-semibold);
   color: var(--text-primary);
 }
@@ -189,15 +276,23 @@ body {
   display: flex;
   align-items: center;
   gap: var(--space-3);
+  flex-shrink: 0;
 }
 
 .nk-viewtabs {
-  display: inline-flex;
+  display: flex;
   background: var(--bg-tertiary);
   border-radius: var(--radius-md);
   padding: 2px;
+  max-width: 46vw;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.nk-viewtabs::-webkit-scrollbar {
+  display: none;
 }
 .nk-viewtab {
+  flex-shrink: 0;
   border: none;
   background: transparent;
   padding: var(--space-1) var(--space-3);
@@ -206,6 +301,7 @@ body {
   font-size: var(--font-size-sm);
   color: var(--text-secondary);
   cursor: pointer;
+  white-space: nowrap;
 }
 .nk-viewtab.is-active {
   background: var(--bg-primary);
@@ -234,7 +330,7 @@ body {
 }
 .nk-table thead th {
   text-align: left;
-  padding: var(--space-3) var(--space-4);
+  padding: var(--space-2) var(--space-4);
   background: var(--bg-secondary);
   border-bottom: 1px solid var(--border-light);
   color: var(--text-tertiary);
@@ -243,7 +339,7 @@ body {
   white-space: nowrap;
 }
 .nk-table tbody td {
-  padding: var(--space-3) var(--space-4);
+  padding: var(--space-2) var(--space-4);
   border-bottom: 1px solid var(--border-light);
   color: var(--text-primary);
   vertical-align: middle;
@@ -577,6 +673,125 @@ body {
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-xl);
   animation: emobi-slide-up var(--duration-normal) var(--easing-default);
+}
+
+/* Right-docked panel variant (record editing) */
+.nk-modal-backdrop.is-panel {
+  align-items: stretch;
+  justify-content: flex-end;
+  padding: 0;
+}
+.nk-panel {
+  width: 100%;
+  max-width: 440px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-primary);
+  border-left: 1px solid var(--border-light);
+  box-shadow: var(--shadow-xl);
+  animation: nk-slide-in-right var(--duration-normal) var(--easing-default);
+}
+@keyframes nk-slide-in-right {
+  from {
+    transform: translateX(16px);
+    opacity: 0.6;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* ── Command palette (⌘K) ────────────────────────────────────────────────── */
+.nk-cmd-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 12vh;
+  z-index: 70;
+  animation: emobi-fade-in var(--duration-fast) var(--easing-out);
+}
+.nk-cmd {
+  width: 100%;
+  max-width: 520px;
+  max-height: 60vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xl);
+  overflow: hidden;
+  animation: emobi-slide-up var(--duration-normal) var(--easing-default);
+}
+.nk-cmd-search {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border-light);
+  color: var(--text-tertiary);
+}
+.nk-cmd-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: var(--font-size-md);
+  color: var(--text-primary);
+}
+.nk-cmd-list {
+  overflow-y: auto;
+  padding: var(--space-1);
+}
+.nk-cmd-empty {
+  padding: var(--space-4);
+  text-align: center;
+  color: var(--text-tertiary);
+  font-size: var(--font-size-sm);
+}
+.nk-cmd-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  text-align: left;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+}
+.nk-cmd-item.is-active {
+  background: var(--color-accent-3);
+}
+.nk-cmd-item-icon {
+  display: inline-flex;
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+.nk-cmd-emoji {
+  font-size: var(--font-size-md);
+  line-height: 1;
+}
+.nk-cmd-item-label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.nk-cmd-item-hint {
+  flex-shrink: 0;
+  font-size: var(--font-size-xs);
+  color: var(--text-tertiary);
 }
 .nk-modal-head {
   padding: var(--space-4) var(--space-5);
@@ -1030,4 +1245,307 @@ body {
     transparent 3px 4.5px
   );
   transition: width var(--duration-normal) var(--easing-default);
+}
+
+/* ── Chart view (time-series line/area) ──────────────────────────────────── */
+.nk-chart {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  height: 100%;
+  overflow: auto;
+}
+.nk-chart-caption {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.nk-chart-svg {
+  width: 100%;
+  max-width: 900px;
+  height: auto;
+}
+.nk-chart-grid {
+  stroke: var(--border-light);
+  stroke-width: 1;
+}
+.nk-chart-line {
+  fill: none;
+  stroke: var(--color-accent-9);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.nk-chart-area {
+  fill: var(--color-accent-9);
+  fill-opacity: 0.12;
+  stroke: none;
+}
+.nk-chart-dot {
+  fill: var(--color-accent-9);
+  stroke: var(--bg-primary);
+  stroke-width: 1.5;
+}
+.nk-chart-ylabel,
+.nk-chart-xlabel {
+  fill: var(--text-tertiary);
+  font-size: 11px;
+  font-family: var(--font-family);
+}
+.nk-chart-ylabel {
+  text-anchor: end;
+}
+
+/* ── Heatmap view (GitHub-style year grid) ───────────────────────────────── */
+.nk-heatmap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  height: 100%;
+  overflow: auto;
+}
+.nk-heatmap-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.nk-heatmap-title {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
+  min-width: 5em;
+  text-align: center;
+}
+.nk-heatmap-total {
+  margin-left: var(--space-2);
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+.nk-heatmap-scroll {
+  overflow-x: auto;
+  padding-bottom: var(--space-1);
+}
+.nk-heatmap-cell {
+  stroke: var(--border-light);
+  stroke-width: 0.5;
+}
+.nk-heatmap-month,
+.nk-heatmap-weekday {
+  fill: var(--text-tertiary);
+  font-size: 10px;
+  font-family: var(--font-family);
+}
+.nk-heatmap-legend {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--font-size-xs);
+  color: var(--text-tertiary);
+}
+.nk-heatmap-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  border: 0.5px solid var(--border-light);
+}
+
+/* ── Overflow menu (popover) ─────────────────────────────────────────────── */
+.nk-menu {
+  position: relative;
+  display: inline-flex;
+}
+.nk-menu-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--easing-default);
+}
+.nk-menu-trigger:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+.nk-menu-pop {
+  position: absolute;
+  top: calc(100% + 4px);
+  min-width: 176px;
+  padding: var(--space-1);
+  background: var(--bg-primary);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  z-index: 40;
+  animation: emobi-fade-in var(--duration-fast) var(--easing-out);
+}
+.nk-menu-right {
+  right: 0;
+}
+.nk-menu-left {
+  left: 0;
+}
+.nk-menu-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--easing-default);
+}
+.nk-menu-item:hover {
+  background: var(--bg-tertiary);
+}
+.nk-menu-item.is-danger {
+  color: var(--text-danger);
+}
+.nk-menu-item.is-danger:hover {
+  background: var(--bg-danger);
+}
+.nk-menu-item-icon {
+  display: inline-flex;
+  color: currentColor;
+}
+
+/* Numeric table columns — right-aligned so digits line up */
+.nk-th-num,
+.nk-td-num {
+  text-align: right;
+}
+
+/* Inline delete confirm (record modal footer) */
+.nk-confirm-inline {
+  font-size: var(--font-size-sm);
+  color: var(--text-danger);
+  align-self: center;
+  margin-right: var(--space-1);
+}
+
+/* Relation pill icon alignment */
+.nk-relation-icon {
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+
+/* ── Toasts ──────────────────────────────────────────────────────────────── */
+.nk-toasts {
+  position: fixed;
+  bottom: var(--space-5);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  z-index: 60;
+  pointer-events: none;
+}
+.nk-toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 260px;
+  max-width: 440px;
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--bg-inverted);
+  color: var(--text-inverted);
+  box-shadow: var(--shadow-lg);
+  font-size: var(--font-size-sm);
+  animation: emobi-slide-up var(--duration-normal) var(--easing-default);
+}
+.nk-toast.is-success {
+  background: var(--text-success);
+  color: #fff;
+}
+.nk-toast.is-error {
+  background: var(--color-red);
+  color: #fff;
+}
+.nk-toast-msg {
+  flex: 1;
+  word-break: break-word;
+}
+.nk-toast-action {
+  flex-shrink: 0;
+  border: none;
+  background: rgba(255, 255, 255, 0.18);
+  color: inherit;
+  font-family: inherit;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.nk-toast-action:hover {
+  background: rgba(255, 255, 255, 0.28);
+}
+.nk-toast-close {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  border: none;
+  background: transparent;
+  color: inherit;
+  opacity: 0.7;
+  cursor: pointer;
+  padding: var(--space-1);
+}
+.nk-toast-close:hover {
+  opacity: 1;
+}
+
+/* ── Empty state (action-prompting) ──────────────────────────────────────── */
+.nk-empty-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  max-width: 360px;
+}
+.nk-empty-title {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-secondary);
+}
+.nk-empty-desc {
+  font-size: var(--font-size-sm);
+  color: var(--text-tertiary);
+  line-height: var(--line-height-normal);
+}
+.nk-empty-hint {
+  font-size: var(--font-size-xs);
+  color: var(--text-light);
+}
+
+/* ── Table selection / keyboard focus ────────────────────────────────────── */
+.nk-table-wrap:focus {
+  outline: none;
+}
+.nk-table-wrap:focus-visible {
+  box-shadow: 0 0 0 2px var(--border-accent);
+}
+.nk-table tbody tr.is-selected {
+  background: var(--color-accent-3);
+}
+.nk-table tbody tr.is-selected:hover {
+  background: var(--color-accent-3);
 }

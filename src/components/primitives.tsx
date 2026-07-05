@@ -201,18 +201,22 @@ export function TagInput({
 }
 
 // ── Modal ───────────────────────────────────────────────────────────────────
+// `variant="panel"` docks it to the right edge (record editing while the table
+// stays visible); "center" is the classic dialog (confirmations).
 export function Modal({
   open,
   onClose,
   title,
   children,
   footer,
+  variant = "center",
 }: {
   open: boolean;
   onClose: () => void;
   title: React.ReactNode;
   children: React.ReactNode;
   footer?: React.ReactNode;
+  variant?: "center" | "panel";
 }) {
   useEffect(() => {
     if (!open) return;
@@ -223,9 +227,12 @@ export function Modal({
 
   if (!open) return null;
   return (
-    <div className="nk-modal-backdrop" onClick={onClose}>
+    <div
+      className={`nk-modal-backdrop${variant === "panel" ? " is-panel" : ""}`}
+      onClick={onClose}
+    >
       <div
-        className="nk-modal"
+        className={variant === "panel" ? "nk-panel" : "nk-modal"}
         role="dialog"
         aria-modal="true"
         onClick={(e) => e.stopPropagation()}

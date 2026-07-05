@@ -26,6 +26,7 @@ export function RecordModal({
     return d;
   });
   const [saving, setSaving] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   const set = (id: string, v: unknown) =>
     setData((prev) => ({ ...prev, [id]: v }));
@@ -35,6 +36,8 @@ export function RecordModal({
     try {
       await onSave(data, record?.id);
       onClose();
+    } catch {
+      // onSave surfaced the error (toast); keep the modal open so edits survive.
     } finally {
       setSaving(false);
     }
@@ -43,6 +46,7 @@ export function RecordModal({
   return (
     <Modal
       open
+      variant="panel"
       onClose={onClose}
       title={
         <span>
@@ -51,24 +55,39 @@ export function RecordModal({
       }
       footer={
         <>
-          {record && (
-            <Button
-              variant="danger"
-              onClick={async () => {
-                await onDelete(record.id);
-                onClose();
-              }}
-            >
-              削除
-            </Button>
-          )}
+          {record &&
+            (confirmingDelete ? (
+              <>
+                <span className="nk-confirm-inline">削除しますか？</span>
+                <Button
+                  variant="danger"
+                  onClick={async () => {
+                    await onDelete(record.id);
+                    onClose();
+                  }}
+                >
+                  削除する
+                </Button>
+                <Button variant="ghost" onClick={() => setConfirmingDelete(false)}>
+                  やめる
+                </Button>
+              </>
+            ) : (
+              <Button variant="ghost" onClick={() => setConfirmingDelete(true)}>
+                削除
+              </Button>
+            ))}
           <div style={{ flex: 1 }} />
-          <Button variant="ghost" onClick={onClose}>
-            キャンセル
-          </Button>
-          <Button variant="primary" isLoading={saving} onClick={save}>
-            保存
-          </Button>
+          {!confirmingDelete && (
+            <>
+              <Button variant="ghost" onClick={onClose}>
+                キャンセル
+              </Button>
+              <Button variant="primary" isLoading={saving} onClick={save}>
+                保存
+              </Button>
+            </>
+          )}
         </>
       }
     >

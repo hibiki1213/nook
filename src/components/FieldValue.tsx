@@ -1,6 +1,7 @@
 // Read-only rendering of a field value in a table cell or board card.
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { Chip } from "./primitives";
+import { LinkIcon } from "./icons";
 import { useRelations } from "./relations";
 import { formatMoney, toTags } from "../lib/format";
 import { resolveImageSrc } from "../lib/images";
@@ -38,7 +39,8 @@ export function FieldValue({ field, value }: { field: Field; value: unknown }) {
       const title = titleOf(field.app, value);
       return (
         <span className="nk-relation" title={title ?? undefined}>
-          🔗 {title ?? `#${String(value)}`}
+          <LinkIcon size={12} className="nk-relation-icon" />
+          {title ?? `#${String(value)}`}
         </span>
       );
     }

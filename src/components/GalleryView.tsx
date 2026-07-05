@@ -1,5 +1,7 @@
 import { Card } from "@emobi/ui";
 import { FieldValue } from "./FieldValue";
+import { EmptyState } from "./EmptyState";
+import { ImageIcon } from "./icons";
 import { resolveImageSrc } from "../lib/images";
 import type { AppDefinition, Field, RecordRow, View } from "../types";
 
@@ -9,11 +11,13 @@ export function GalleryView({
   view,
   records,
   onOpen,
+  onCreate,
 }: {
   app: AppDefinition;
   view: View;
   records: RecordRow[];
   onOpen: (r: RecordRow) => void;
+  onCreate?: () => void;
 }) {
   const imageField =
     app.fields.find((f) => f.id === view.imageField) ??
@@ -31,11 +35,7 @@ export function GalleryView({
     .slice(0, 3);
 
   if (!records.length) {
-    return (
-      <div className="nk-empty-state">
-        まだレコードがありません。「＋ 新規」から追加するか、Claude に頼んでみてください。
-      </div>
-    );
+    return <EmptyState onCreate={onCreate} />;
   }
 
   return (
@@ -57,7 +57,9 @@ export function GalleryView({
                     }}
                   />
                 ) : (
-                  <span className="nk-gallery-noimg">🖼</span>
+                  <span className="nk-gallery-noimg">
+                    <ImageIcon size={28} />
+                  </span>
                 )}
               </div>
               <div className="nk-gallery-body">

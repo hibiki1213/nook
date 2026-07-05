@@ -3,6 +3,7 @@ import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { importImage } from "../api";
 import { resolveImageSrc } from "../lib/images";
+import { ImageIcon } from "./icons";
 
 const IMAGE_EXTENSIONS = ["png", "jpg", "jpeg", "gif", "webp", "bmp", "heic"];
 
@@ -98,7 +99,9 @@ export function ImagePicker({
           />
         ) : (
           <div className="nk-dropzone-hint">
-            <span className="nk-dropzone-icon">🖼</span>
+            <span className="nk-dropzone-icon">
+              <ImageIcon size={22} />
+            </span>
             {busy ? "取り込み中…" : "クリックして選択、またはここにドラッグ"}
           </div>
         )}

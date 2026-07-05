@@ -81,13 +81,19 @@ const fieldSchema = z.object({
     .describe(
       "REQUIRED for `relation`: target app id. The record value is the target record's integer id (find ids with list_records).",
     ),
+  remind: z
+    .boolean()
+    .optional()
+    .describe(
+      "date fields only: when true, records whose date is today get an OS notification + a sidebar badge (use for due dates, renewals, watering schedules…)",
+    ),
 });
 
 const viewSchema = z.object({
   id: z.string(),
   name: z.string(),
   type: z
-    .enum(["table", "board", "calendar", "gallery", "summary"])
+    .enum(["table", "board", "calendar", "gallery", "summary", "chart", "heatmap"])
     .optional()
     .describe("defaults to table"),
   columns: z.array(z.string()).optional().describe("field ids to show (table)"),
@@ -106,7 +112,12 @@ const viewSchema = z.object({
       fn: z.enum(["sum", "avg", "count", "min", "max"]).optional(),
     })
     .optional()
-    .describe("the aggregate a summary view shows"),
+    .describe("the aggregate a summary/chart/heatmap view shows"),
+  chartType: z.enum(["line", "area"]).optional().describe("chart view style (default line)"),
+  bucket: z
+    .enum(["day", "week", "month"])
+    .optional()
+    .describe("chart x-axis time bucket (default day)"),
 });
 
 const ok = (data: unknown) => ({
@@ -157,8 +168,12 @@ server.tool(
     "  image (a URL/data-URI shown as a thumbnail),",
     "  relation (a link to a record in another app: set `app` to the target app id;",
     "    record values are the target record's integer id — look ids up with list_records).",
+    "Reminders: a date field with `remind: true` notifies the user (OS notification +",
+    "  sidebar badge) on the day the record's date arrives — use it for 期限/更新日/次回日.",
     "View types: table, board (needs `groupBy`), calendar (needs `dateField`),",
-    "  gallery (uses `imageField`), summary (aggregate via `metric`, optional `groupBy`).",
+    "  gallery (uses `imageField`), summary (aggregate via `metric`, optional `groupBy`),",
+    "  chart (time-series line/area of `metric` over `dateField`; set `chartType`+`bucket`),",
+    "  heatmap (GitHub-style year grid of `metric` per day over `dateField` — great for habits).",
     "Mark fields used for sorting/filtering as `indexed: true`.",
     "`id` and every field `id` must match ^[a-z][a-z0-9_]*$.",
     "Example: create_app({ id:'books', name:'読書記録', icon:'📚',",

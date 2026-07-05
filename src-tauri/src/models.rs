@@ -78,6 +78,10 @@ pub struct Field {
     /// Target app id for a `relation` field.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub app: Option<String>,
+    /// For `date` fields: surface records whose date is today (OS notification
+    /// + sidebar badge).
+    #[serde(default)]
+    pub remind: bool,
 }
 
 impl Field {
@@ -93,6 +97,12 @@ impl Field {
                     ))
                 }
             }
+        }
+        if self.remind && self.field_type != FieldType::Date {
+            return Err(format!(
+                "`remind` is only valid on date fields (field '{}')",
+                self.id
+            ));
         }
         Ok(())
     }
@@ -134,7 +144,7 @@ fn default_metric_fn() -> String {
 pub struct View {
     pub id: String,
     pub name: String,
-    /// "table" | "board" | "calendar" | "gallery" | "summary"
+    /// "table" | "board" | "calendar" | "gallery" | "summary" | "chart" | "heatmap"
     #[serde(rename = "type", default = "default_view_type")]
     pub view_type: String,
     /// Fields shown as columns (table view).
@@ -151,9 +161,15 @@ pub struct View {
     /// image-field id shown as the card image (gallery view).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub image_field: Option<String>,
-    /// aggregate shown by a summary view.
+    /// aggregate shown by a summary/chart/heatmap view.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub metric: Option<Metric>,
+    /// chart style for a `chart` view: "line" | "area".
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub chart_type: Option<String>,
+    /// time bucket for a `chart` x-axis: "day" | "week" | "month".
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bucket: Option<String>,
 }
 
 fn default_view_type() -> String {
@@ -212,11 +228,15 @@ mod tests {
             {"id":"b","name":"B","type":"board","groupBy":"status"},
             {"id":"c","name":"C","type":"calendar","dateField":"due"},
             {"id":"g","name":"G","type":"gallery","imageField":"cover"},
-            {"id":"s","name":"S","type":"summary","groupBy":"cat","metric":{"field":"amount","fn":"sum"}}
+            {"id":"s","name":"S","type":"summary","groupBy":"cat","metric":{"field":"amount","fn":"sum"}},
+            {"id":"ch","name":"Ch","type":"chart","dateField":"due","chartType":"line","bucket":"month","metric":{"field":"amount","fn":"sum"}}
         ]}"#;
         let def: AppDefinition = serde_json::from_str(j).unwrap();
         let back = serde_json::to_string(&def).unwrap();
-        for key in ["groupBy", "dateField", "imageField", "\"type\":\"summary\"", "\"fn\":\"sum\""] {
+        for key in [
+            "groupBy", "dateField", "imageField", "\"type\":\"summary\"", "\"fn\":\"sum\"",
+            "chartType", "\"bucket\":\"month\"",
+        ] {
             assert!(back.contains(key), "{key} was dropped: {back}");
         }
         assert_eq!(def.views[0].group_by.as_deref(), Some("status"));
@@ -224,6 +244,8 @@ mod tests {
         assert_eq!(def.views[2].image_field.as_deref(), Some("cover"));
         let m = def.views[3].metric.as_ref().unwrap();
         assert_eq!((m.field.as_str(), m.func.as_str()), ("amount", "sum"));
+        assert_eq!(def.views[4].chart_type.as_deref(), Some("line"));
+        assert_eq!(def.views[4].bucket.as_deref(), Some("month"));
     }
 
     #[test]
