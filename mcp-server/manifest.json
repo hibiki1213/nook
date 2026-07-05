@@ -1,0 +1,43 @@
+{
+  "dxt_version": "0.1",
+  "name": "nook",
+  "display_name": "Nook",
+  "version": "0.1.1",
+  "description": "Build and edit your personal local Nook apps directly from Claude.",
+  "long_description": "Nook is a personal, local-first app builder. This extension lets Claude create apps (fields + views), add fields, and read/write records in your Nook workspace. It talks to the Nook desktop app's localhost API — the app owns your data, which never leaves your machine. The Nook desktop app must be running.",
+  "author": {
+    "name": "Nook"
+  },
+  "server": {
+    "type": "node",
+    "entry_point": "dist/index.mjs",
+    "mcp_config": {
+      "command": "node",
+      "args": ["${__dirname}/dist/index.mjs"],
+      "env": {
+        "NOOK_API": "${user_config.api_url}"
+      }
+    }
+  },
+  "user_config": {
+    "api_url": {
+      "type": "string",
+      "title": "Nook local API URL",
+      "description": "The Nook desktop app's local API. Change only if you customized the port.",
+      "default": "http://127.0.0.1:8765",
+      "required": false
+    }
+  },
+  "tools": [
+    { "name": "list_apps", "description": "List all apps" },
+    { "name": "get_app", "description": "Get an app's definition" },
+    { "name": "create_app", "description": "Create a new app" },
+    { "name": "add_field", "description": "Add a field to an app" },
+    { "name": "list_records", "description": "List an app's records" },
+    { "name": "add_record", "description": "Add a record" },
+    { "name": "update_record", "description": "Update a record" },
+    { "name": "delete_record", "description": "Delete a record" }
+  ],
+  "keywords": ["nook", "apps", "database", "personal", "local-first"],
+  "license": "MIT"
+}

@@ -1,0 +1,12 @@
+# The server is bundled into a single self-contained dist/index.mjs by esbuild,
+# so none of the source or dependencies need to ship in the .mcpb.
+node_modules/
+src/
+*.map
+tsconfig.json
+.gitignore
+test-client.mjs
+pnpm-lock.yaml
+*.log
+*.mcpb
+*.dxt
