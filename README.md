@@ -1,4 +1,8 @@
-# Nook
+<p align="center">
+  <img src="src-tauri/icons/128x128@2x.png" width="120" alt="Nook">
+</p>
+
+<h1 align="center">Nook</h1>
 
 A personal, local-first **"kintone you build with Claude."** Ask Claude Desktop to
 build small apps (task tracker, reading log, habit tracker…), and use them in a
@@ -20,11 +24,24 @@ native desktop app. Your data stays in a single SQLite file on your machine.
 
 Open the `.dmg` and drag **Nook** into your **Applications** folder.
 
-> **First launch (unsigned build).** This build isn't notarized, so the first time
-> you open it macOS says *"Nook can't be opened because Apple cannot check it for
-> malicious software."* To get past it (once):
-> - **Right-click** `Nook.app` → **Open** → **Open** in the dialog, **or**
-> - run `xattr -cr /Applications/Nook.app` once in Terminal.
+#### First launch (unsigned build)
+
+Because this build isn't notarized, macOS blocks it the first time you open it
+(*"Nook can't be opened because Apple cannot check it for malicious software."*).
+Do this **once**:
+
+- **Easiest — all macOS:** run `xattr -cr /Applications/Nook.app` in Terminal, then open the app normally.
+- **GUI — macOS Sequoia (15) / Tahoe (26):** try to open the app, dismiss the warning, then go to **System Settings → Privacy & Security →** scroll down **→ "Open Anyway."**
+
+> ⚠️ The old **right-click → Open** shortcut no longer works on macOS Sequoia and later.
+
+**日本語 — 未署名アプリの初回起動**
+
+このアプリは未署名のため、初回だけ macOS にブロックされます（「"Nook"は壊れているため開けません」「開発元を確認できないため開けません」等）。初回のみ、次のどちらかを実行してください:
+
+- **かんたん（全 macOS 共通）:** ターミナルで `xattr -cr /Applications/Nook.app` を実行 → 通常どおり開く
+- **GUI（macOS Sequoia / Tahoe）:** 一度アプリを開いて警告を閉じ、**システム設定 → プライバシーとセキュリティ →** 下までスクロール **→「このまま開く」** をクリック
+- ※ 旧来の「右クリック→開く」は macOS Sequoia 以降では使えません
 
 ## Architecture
 
