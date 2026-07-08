@@ -18,9 +18,7 @@ export function Sidebar({
     <aside className="nk-sidebar">
       {/* Draggable strip under the overlaid traffic-light buttons. */}
       <div className="nk-titlebar-drag" data-tauri-drag-region />
-      <div className="nk-brand">
-        <span className="nk-brand-mark">◆</span> Nook
-      </div>
+      <div className="nk-brand">Nook</div>
 
       <div className="nk-sidebar-label">アプリ</div>
       <nav className="nk-app-list">

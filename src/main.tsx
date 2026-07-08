@@ -2,6 +2,13 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { ThemeProvider } from "@emobi/ui";
 import "@emobi/ui/styles.css";
+// Bundled fonts (local, offline): Latin/digits → Inter, Japanese → LINE Seed JP.
+// (The design system names Inter but doesn't ship it, so we bundle it here.)
+import "@fontsource/inter/400.css";
+import "@fontsource/inter/500.css";
+import "@fontsource/inter/600.css";
+import "@fontsource/line-seed-jp/400.css";
+import "@fontsource/line-seed-jp/700.css";
 import "./styles.css";
 import App from "./App";
 import { ToastProvider } from "./components/Toast";

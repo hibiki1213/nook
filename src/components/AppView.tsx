@@ -176,13 +176,9 @@ export function AppView({
     <RelationProvider app={def}>
     <div className="nk-appview">
       <header className="nk-appheader" data-tauri-drag-region>
-        <div className="nk-appheader-title">
-          <span className="nk-appheader-icon">{def.icon ?? "🗂"}</span>
-          <div>
-            <h1>{def.name}</h1>
-            {def.description && <p>{def.description}</p>}
-          </div>
-        </div>
+        {/* Title/icon/description live in the sidebar — keep the header a slim
+            toolbar with a draggable spacer on the left. */}
+        <div className="nk-appheader-spacer" data-tauri-drag-region />
         <div className="nk-appheader-actions">
           {def.views.length > 1 && (
             <div className="nk-viewtabs">

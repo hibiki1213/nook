@@ -1,6 +1,15 @@
 /* Nook app-shell styles. Everything is expressed with @emobi/ui design tokens,
    so light/dark (data-theme) both work automatically. */
 
+/* Font: Inter for Latin/digits, LINE Seed JP for Japanese. Inter is listed
+   first and has no Japanese glyphs, so the browser falls through to LINE Seed
+   JP per-glyph for kana/kanji. (Inter is the design system's default; we add
+   the Japanese fallback and bundle LINE Seed JP locally.) */
+:root {
+  --font-family: "Inter", "LINE Seed JP", -apple-system, BlinkMacSystemFont,
+    "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+}
+
 html,
 body,
 #root {
@@ -104,7 +113,8 @@ body {
   border-radius: var(--radius-md);
   cursor: pointer;
   font-family: inherit;
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
   color: var(--text-secondary);
   text-align: left;
   transition: background var(--duration-fast) var(--easing-default);
@@ -115,10 +125,10 @@ body {
 .nk-app-item.is-active {
   background: var(--color-accent-3);
   color: var(--text-accent);
-  font-weight: var(--font-weight-medium);
+  font-weight: var(--font-weight-semibold);
 }
 .nk-app-icon {
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-xs);
   line-height: 1;
 }
 .nk-app-name {
@@ -243,34 +253,9 @@ body {
   padding: var(--space-4) var(--space-6);
   border-bottom: 1px solid var(--border-light);
 }
-.nk-appheader-title {
-  display: flex;
-  gap: var(--space-3);
-  align-items: center;
-  min-width: 0;
-}
-.nk-appheader-title > div {
-  min-width: 0;
-}
-.nk-appheader-title h1 {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.nk-appheader-icon {
-  font-size: var(--font-size-xxl);
-  line-height: 1;
-}
-.nk-appheader-title h1 {
-  margin: 0;
-  font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-semibold);
-  color: var(--text-primary);
-}
-.nk-appheader-title p {
-  margin: 2px 0 0;
-  font-size: var(--font-size-sm);
-  color: var(--text-tertiary);
+.nk-appheader-spacer {
+  flex: 1;
+  align-self: stretch;
 }
 .nk-appheader-actions {
   display: flex;

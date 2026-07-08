@@ -12,6 +12,20 @@ native desktop app. Your data stays in a single SQLite file on your machine.
   are ever sent to it — never the whole database.)
 - **Built on** Tauri (Rust) + React + [`@emobi/ui`](../Downloads/twent-ui) design system.
 
+## Download
+
+### [⬇️ Download Nook for macOS (Apple Silicon)](https://github.com/hibiki1213/nook/releases/download/v0.1.0/Nook_0.1.0_aarch64.dmg)
+
+`.dmg` · ~15 MB · requires **Apple Silicon** (M1 or later)
+
+Open the `.dmg` and drag **Nook** into your **Applications** folder.
+
+> **First launch (unsigned build).** This build isn't notarized, so the first time
+> you open it macOS says *"Nook can't be opened because Apple cannot check it for
+> malicious software."* To get past it (once):
+> - **Right-click** `Nook.app` → **Open** → **Open** in the dialog, **or**
+> - run `xattr -cr /Applications/Nook.app` once in Terminal.
+
 ## Architecture
 
 The **Nook app owns the database** and is its only writer. It exposes a tiny
@@ -96,7 +110,7 @@ Point Claude Desktop's config at the bundled entry point:
   "mcpServers": {
     "nook": {
       "command": "node",
-      "args": ["/Users/hibiki_ceo/whitesharp/mcp-server/dist/index.mjs"]
+      "args": ["/Users/hibiki_ceo/nook/mcp-server/dist/index.mjs"]
     }
   }
 }
