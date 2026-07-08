@@ -2,6 +2,7 @@
 // "form engine" — add a field type here and every app gets it.
 import { Input, Checkbox } from "@emobi/ui";
 import { Select, Textarea, Stars, TagInput } from "./primitives";
+import { FilePicker } from "./FilePicker";
 import { ImagePicker } from "./ImagePicker";
 import { useRelations } from "./relations";
 import { toTags } from "../lib/format";
@@ -186,6 +187,16 @@ export function FieldInput({
             {field.required && <span className="nk-req">*</span>}
           </label>
           <ImagePicker value={str} onChange={(v) => onChange(v)} />
+        </div>
+      );
+    case "file":
+      return (
+        <div className="nk-field">
+          <label className="nk-label">
+            {field.label}
+            {field.required && <span className="nk-req">*</span>}
+          </label>
+          <FilePicker field={field} value={value} onChange={(v) => onChange(v)} />
         </div>
       );
     case "relation":

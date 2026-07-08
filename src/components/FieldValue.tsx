@@ -1,9 +1,10 @@
 // Read-only rendering of a field value in a table cell or board card.
-import { openUrl } from "@tauri-apps/plugin-opener";
+import { openPath, openUrl } from "@tauri-apps/plugin-opener";
 import { Chip } from "./primitives";
-import { LinkIcon } from "./icons";
+import { FileIcon, LinkIcon } from "./icons";
 import { useRelations } from "./relations";
 import { formatMoney, toTags } from "../lib/format";
+import { fileAbsPath, toFileRefs } from "../lib/files";
 import { resolveImageSrc } from "../lib/images";
 import type { Field } from "../types";
 
@@ -104,6 +105,35 @@ export function FieldValue({ field, value }: { field: Field; value: unknown }) {
           }}
         />
       );
+    case "file": {
+      const files = toFileRefs(value);
+      if (!files.length) return <span className="nk-empty">—</span>;
+      const [first] = files;
+      return (
+        <span className="nk-files">
+          <button
+            type="button"
+            className="nk-file-chip"
+            title={first.name}
+            onClick={(e) => {
+              // Don't let the row-click open the record modal; open the file.
+              e.preventDefault();
+              e.stopPropagation();
+              const path = fileAbsPath(first.ref);
+              if (path) void openPath(path);
+            }}
+          >
+            <FileIcon size={12} />
+            {truncate(first.name, 24)}
+          </button>
+          {files.length > 1 && (
+            <span className="nk-file-more" title={files.slice(1).map((f) => f.name).join("\n")}>
+              +{files.length - 1}
+            </span>
+          )}
+        </span>
+      );
+    }
     case "textarea":
       return <span className="nk-muted">{truncate(String(value), 60)}</span>;
     case "date":

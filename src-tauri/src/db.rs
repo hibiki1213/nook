@@ -204,6 +204,7 @@ mod tests {
             currency: None,
             app: None,
             remind: false,
+            multiple: false,
         });
         ensure_table(&conn, &def).unwrap();
 

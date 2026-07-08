@@ -89,6 +89,21 @@ pub fn get_images_dir() -> CmdResult<String> {
     Ok(crate::images::images_dir()?.display().to_string())
 }
 
+/// Copy a picked file into the app's files dir; returns the `{ref,name,size}` a
+/// `file` field stores. UI-only: the MCP server has no filesystem access, so
+/// Claude can *define* `file` fields but can never attach to them.
+#[tauri::command]
+pub fn import_file(src_path: String) -> CmdResult<crate::files::FileRef> {
+    Ok(crate::files::import(&src_path)?)
+}
+
+/// Absolute path of the files dir (thumbnails live in its `.thumbs/`), so the
+/// renderer can build asset URLs.
+#[tauri::command]
+pub fn get_files_dir() -> CmdResult<String> {
+    Ok(crate::files::files_dir()?.display().to_string())
+}
+
 /// Hand the app-bundled `.mcpb` to Claude Desktop so it shows its Install/Update
 /// dialog. The bundle ships as a Tauri resource, so the user's machine needs no
 /// Node/pnpm — see `mcp.rs`.

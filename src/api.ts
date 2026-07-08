@@ -1,7 +1,13 @@
 // Thin wrappers over the Tauri commands. Tauri maps camelCase JS keys to the
 // snake_case Rust parameters (appId -> app_id, viewId -> view_id).
 import { invoke } from "@tauri-apps/api/core";
-import type { AppDefinition, AppSummary, DueApp, RecordRow } from "./types";
+import type {
+  AppDefinition,
+  AppSummary,
+  DueApp,
+  FileRef,
+  RecordRow,
+} from "./types";
 
 export const listApps = () => invoke<AppSummary[]>("list_apps");
 
@@ -38,6 +44,14 @@ export const installMcp = () => invoke<InstallMcpResult>("install_mcp");
 /** Copy a picked file into the images dir → returns the `nook-img://` value. */
 export const importImage = (srcPath: string) =>
   invoke<string>("import_image", { srcPath });
+
+/**
+ * Copy a picked file into the files dir → returns the `FileRef` to store.
+ * UI-only: the MCP server has no filesystem, so Claude can define `file` fields
+ * but can never attach to them.
+ */
+export const importFile = (srcPath: string) =>
+  invoke<FileRef>("import_file", { srcPath });
 
 /** Per-app counts of records due today (for sidebar badges). */
 export const dueCounts = () => invoke<DueApp[]>("due_counts");

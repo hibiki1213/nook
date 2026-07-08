@@ -31,7 +31,7 @@ The database file (macOS):
       "id": "status",          // ^[a-z][a-z0-9_]*$ — JSON key + generated column
       "label": "ステータス",
       // text | textarea | number | checkbox | select | date
-      // | url | money | rating | tags | image | relation
+      // | url | money | rating | tags | image | file | relation
       "type": "select",
       "required": false,        // optional
       "options": ["未着手","進行中","完了"],  // required for `select`; preset labels for `tags`
@@ -40,7 +40,8 @@ The database file (macOS):
       "max": 5,                 // optional — stars for `rating` (default 5)
       "currency": "JPY",        // optional — ISO 4217 for `money` (default JPY)
       "app": "books",           // required for `relation` — target app id
-      "remind": true            // date fields only — notify when the date arrives
+      "remind": true,           // date fields only — notify when the date arrives
+      "multiple": true          // file fields only — store an array of attachments
     }
   ],
   "views": [
@@ -102,8 +103,8 @@ CREATE INDEX "ix_tasks_status" ON "d_tasks" ("f_status");  -- when indexed: true
 - **Adding a field never migrates data.** `ALTER TABLE … ADD COLUMN … GENERATED …`
   and existing rows immediately get the computed value (NULL if the key is absent).
 - **Column affinity by type:** `number | money | rating → REAL`,
-  `checkbox → INTEGER`, everything else (`text`, `textarea`, `select`, `date`,
-  `url`, `tags`) `→ TEXT`.
+  `checkbox | relation → INTEGER`, everything else (`text`, `textarea`, `select`,
+  `date`, `url`, `tags`, `image`, `file`) `→ TEXT`.
 - **Value shapes.** Most fields store a scalar. `money` and `rating` store a
   **number** (rating is `1..=max`). `tags` stores a **JSON array of strings**, so
   its generated column mirrors the array's JSON text — good for display, not for
@@ -111,8 +112,15 @@ CREATE INDEX "ix_tasks_status" ON "d_tasks" ("f_status");  -- when indexed: true
   value may also be `nook-img://<filename>` — a file picked from the PC in the
   UI, copied into `~/Library/Application Support/com.nook.app/images/` and
   served to the renderer over Tauri's asset protocol. Claude (MCP) keeps writing
-  plain URLs; both forms coexist. `relation` stores the **target record's
-  integer id** in the app named by the field's `app`; the renderer shows the
+  plain URLs; both forms coexist. A `file` field stores an **object**
+  `{ref, name, size}` — or a JSON **array** of them when `multiple: true` — whose
+  `ref` is `nook-file://<stored-name>`. The bytes are copied into
+  `…/com.nook.app/files/` and a QuickLook thumbnail into its `.thumbs/`. Unlike
+  `image`, the original filename is kept: it is the only thing distinguishing
+  `2023年度_期末.pdf` from `2024年度_期末.pdf`. **Claude cannot write a `file`
+  value** — the MCP server has no filesystem access, so the user attaches files in
+  the UI; Claude still reads the names back from `list_records`. `relation` stores
+  the **target record's integer id** in the app named by the field's `app`; the renderer shows the
   target's title (its first text field). There is no referential integrity:
   deleting the target record/app leaves a dangling id, shown as `#<id>`.
 

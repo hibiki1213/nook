@@ -32,6 +32,11 @@ pub enum FieldType {
     Tags,
     /// An image, stored as a URL / data-URI string shown as a thumbnail.
     Image,
+    /// A file attachment, stored as `{ref, name, size}` — or an array of those
+    /// when `Field::multiple`. Only the reference lives in the DB; the bytes go
+    /// to `<app-data>/files/` (see `files.rs`). Like `Tags`, its generated column
+    /// therefore holds JSON text (fine for display; not for range sorting).
+    File,
     /// A reference to a record in another app (see `Field::app`); stored as the
     /// target record's integer id.
     Relation,
@@ -44,7 +49,8 @@ impl FieldType {
             // numeric-valued fields sort/compare correctly with REAL affinity
             FieldType::Number | FieldType::Money | FieldType::Rating => "REAL",
             FieldType::Checkbox | FieldType::Relation => "INTEGER",
-            // text / textarea / select / date / url / tags are all stored as text
+            // text / textarea / select / date / url / image are stored as text;
+            // tags and file store JSON text (see the FieldType docs above)
             _ => "TEXT",
         }
     }
@@ -82,6 +88,10 @@ pub struct Field {
     /// + sidebar badge).
     #[serde(default)]
     pub remind: bool,
+    /// For `file` fields: allow several attachments. The stored value becomes an
+    /// array of file refs instead of a single one.
+    #[serde(default)]
+    pub multiple: bool,
 }
 
 impl Field {
@@ -101,6 +111,12 @@ impl Field {
         if self.remind && self.field_type != FieldType::Date {
             return Err(format!(
                 "`remind` is only valid on date fields (field '{}')",
+                self.id
+            ));
+        }
+        if self.multiple && self.field_type != FieldType::File {
+            return Err(format!(
+                "`multiple` is only valid on file fields (field '{}')",
                 self.id
             ));
         }
@@ -246,6 +262,32 @@ mod tests {
         assert_eq!((m.field.as_str(), m.func.as_str()), ("amount", "sum"));
         assert_eq!(def.views[4].chart_type.as_deref(), Some("line"));
         assert_eq!(def.views[4].bucket.as_deref(), Some("month"));
+    }
+
+    #[test]
+    fn file_field_accepts_multiple_and_stores_as_text() {
+        let ok: Field = serde_json::from_str(
+            r#"{"id":"papers","label":"過去問","type":"file","multiple":true}"#,
+        )
+        .unwrap();
+        assert!(ok.validate().is_ok());
+        assert!(ok.multiple);
+        // Like `tags`, the generated column holds JSON text.
+        assert_eq!(ok.field_type.affinity(), "TEXT");
+
+        // A single-attachment file field is the default.
+        let single: Field =
+            serde_json::from_str(r#"{"id":"syllabus","label":"S","type":"file"}"#).unwrap();
+        assert!(single.validate().is_ok());
+        assert!(!single.multiple);
+    }
+
+    #[test]
+    fn multiple_is_rejected_on_non_file_fields() {
+        let bad: Field =
+            serde_json::from_str(r#"{"id":"labels","label":"L","type":"tags","multiple":true}"#)
+                .unwrap();
+        assert!(bad.validate().is_err());
     }
 
     #[test]

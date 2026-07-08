@@ -88,6 +88,7 @@ const fieldSchema = z.object({
     "rating",
     "tags",
     "image",
+    "file",
     "relation",
   ]),
   required: z.boolean().optional(),
@@ -116,6 +117,12 @@ const fieldSchema = z.object({
     .optional()
     .describe(
       "date fields only: when true, records whose date is today get an OS notification + a sidebar badge (use for due dates, renewals, watering schedules…)",
+    ),
+  multiple: z
+    .boolean()
+    .optional()
+    .describe(
+      "file fields only: allow several attachments per record (the stored value becomes an array)",
     ),
 });
 
@@ -196,6 +203,10 @@ server.tool(
     "  url (a hyperlink), money (number shown as currency; set `currency`, default JPY),",
     "  rating (stars 1..`max`, default 5), tags (multiple labels; `options` gives presets, else free-form),",
     "  image (a URL/data-URI shown as a thumbnail),",
+    "  file (a PDF/image/Office attachment, previewed inline in the app. You can DEFINE",
+    "    this field, but you can never attach a file — you have no access to the user's",
+    "    filesystem; they drop files into the app themselves. Set `multiple: true` for",
+    "    several per record, e.g. several years of past exam papers per course),",
     "  relation (a link to a record in another app: set `app` to the target app id;",
     "    record values are the target record's integer id — look ids up with list_records).",
     "Reminders: a date field with `remind: true` notifies the user (OS notification +",

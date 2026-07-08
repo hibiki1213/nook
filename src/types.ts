@@ -14,7 +14,21 @@ export type FieldType =
   | "rating"
   | "tags"
   | "image"
+  | "file"
   | "relation";
+
+/**
+ * What a `file` field stores. Unlike `image` (a bare URL string) we keep the
+ * original filename — `2023年度_期末.pdf` is the whole point of an attachment.
+ * A `multiple` file field stores an array of these.
+ */
+export interface FileRef {
+  /** `nook-file://<stored-name>` — resolve via `lib/files.ts`. */
+  ref: string;
+  /** Original filename, shown in the UI. */
+  name: string;
+  size: number;
+}
 
 export interface Field {
   id: string;
@@ -32,6 +46,8 @@ export interface Field {
   app?: string;
   /** date fields: badge + OS-notify when the date arrives. */
   remind?: boolean;
+  /** `file` fields: allow several attachments (the value becomes `FileRef[]`). */
+  multiple?: boolean;
 }
 
 /** Per-app "due today" count (reminded date fields). */

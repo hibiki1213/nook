@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTheme } from "@emobi/ui";
 import { dueCounts, listApps } from "./api";
+import { initFiles } from "./lib/files";
 import { initImages } from "./lib/images";
 import type { AppSummary } from "./types";
 import { Sidebar } from "./components/Sidebar";
@@ -33,8 +34,9 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    // Resolve the images dir once so local image refs render synchronously.
+    // Resolve the images/files dirs once so local refs render synchronously.
     void initImages();
+    void initFiles();
     refreshApps();
     // Poll so apps created by Claude (via MCP) show up without a restart.
     const t = setInterval(refreshApps, 4000);

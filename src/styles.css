@@ -989,6 +989,160 @@ body {
   color: var(--text-danger);
 }
 
+/* ── File field (attachments: list + inline preview) ─────────────────────── */
+.nk-filepicker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+/* Reuses .nk-dropzone, but shorter: the attachment list below carries the content. */
+.nk-file-dropzone {
+  min-height: 72px;
+}
+.nk-file-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.nk-file-item {
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  overflow: hidden;
+}
+.nk-file-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2);
+}
+/* QuickLook thumbnail; falls back to the icon underneath when absent. */
+.nk-file-thumb {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--border-light);
+  background: var(--bg-primary);
+  color: var(--text-tertiary);
+  overflow: hidden;
+}
+.nk-file-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.nk-file-name {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  font-size: var(--font-size-xs);
+  color: var(--text-primary);
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.nk-file-name:hover {
+  color: var(--text-accent);
+  text-decoration: underline;
+}
+.nk-file-size {
+  flex-shrink: 0;
+  font-size: var(--font-size-xxs);
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+.nk-file-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  background: none;
+  border: none;
+  padding: var(--space-1) var(--space-2);
+  font: inherit;
+  font-size: var(--font-size-xxs);
+  color: var(--text-tertiary);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+}
+.nk-file-btn:hover {
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+}
+.nk-file-btn.is-danger:hover {
+  color: var(--text-danger);
+  background: var(--bg-danger);
+}
+/* Inline preview — WKWebView renders the PDF itself, no JS viewer needed. */
+.nk-file-preview {
+  border-top: 1px solid var(--border-light);
+  background: var(--bg-primary);
+  padding: var(--space-2);
+}
+.nk-file-pdf {
+  width: 100%;
+  height: 420px;
+  border: none;
+  border-radius: var(--radius-xs);
+  background: var(--bg-secondary);
+}
+.nk-file-img {
+  display: block;
+  max-width: 100%;
+  max-height: 420px;
+  margin: 0 auto;
+  border-radius: var(--radius-xs);
+}
+.nk-filepicker-error {
+  font-size: var(--font-size-xs);
+  color: var(--text-danger);
+}
+/* Table cell / board card: a compact chip that opens the file. */
+.nk-files {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+}
+.nk-file-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-pill);
+  padding: 2px var(--space-2);
+  font: inherit;
+  font-size: var(--font-size-xxs);
+  color: var(--text-secondary);
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.nk-file-chip:hover {
+  color: var(--text-accent);
+  border-color: var(--border-accent);
+}
+.nk-file-more {
+  flex-shrink: 0;
+  font-size: var(--font-size-xxs);
+  color: var(--text-tertiary);
+}
+
 /* ── Gallery view ────────────────────────────────────────────────────────── */
 .nk-gallery {
   display: grid;

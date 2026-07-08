@@ -1,5 +1,6 @@
 mod commands;
 mod db;
+mod files;
 mod http;
 mod images;
 mod mcp;
@@ -68,6 +69,8 @@ pub fn run() {
             commands::install_mcp,
             commands::import_image,
             commands::get_images_dir,
+            commands::import_file,
+            commands::get_files_dir,
             commands::due_counts,
         ])
         .run(tauri::generate_context!())
