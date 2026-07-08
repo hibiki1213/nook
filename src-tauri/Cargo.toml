@@ -1,6 +1,6 @@
 [package]
 name = "nook"
-version = "0.2.0"
+version = "0.3.0"
 description = "Nook — a personal, local-first app builder you make with Claude"
 authors = ["you"]
 edition = "2021"

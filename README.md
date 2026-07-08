@@ -18,9 +18,9 @@ native desktop app. Your data stays in a single SQLite file on your machine.
 
 ## Download
 
-### [⬇️ Download Nook for macOS (Apple Silicon)](https://github.com/hibiki1213/nook/releases/download/v0.2.0/Nook_0.2.0_aarch64.dmg)
+### [⬇️ Download Nook for macOS (Apple Silicon)](https://github.com/hibiki1213/nook/releases/download/v0.3.0/Nook_0.3.0_aarch64.dmg)
 
-`.dmg` · ~15 MB · requires **Apple Silicon** (M1 or later)
+`.dmg` · ~16 MB · requires **Apple Silicon** (M1 or later)
 
 Open the `.dmg` and drag **Nook** into your **Applications** folder. The Claude Desktop
 extension is bundled inside the app — connect it with one click from the sidebar
