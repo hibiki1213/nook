@@ -30,6 +30,11 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
+        // Self-update: checks GitHub Releases' latest.json, verified with our
+        // minisign public key (see `plugins.updater` in tauri.conf.json).
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        // Needed to relaunch the app after an update is installed.
+        .plugin(tauri_plugin_process::init())
         .setup(|app| {
             // Reminder scheduler: OS notifications for due date-fields.
             let handle = app.handle().clone();

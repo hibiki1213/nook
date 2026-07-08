@@ -10,12 +10,42 @@ import { z } from "zod";
 // `||` (not `??`) so an empty NOOK_API from an unset user_config still defaults.
 const API = process.env.NOOK_API || "http://127.0.0.1:8765";
 
+/** This extension's version — in lockstep with the app, which ships it inside itself. */
+const EXT_VERSION = "0.2.0";
+/** Contract version. Must match `API_VERSION` in `src-tauri/src/http.rs`. */
+const EXT_API_VERSION = 1;
+
+/** Negotiated once per process, so a stale extension fails loudly, not silently. */
+let compatChecked = false;
+
+async function ensureCompatible(): Promise<void> {
+  if (compatChecked) return;
+  const health = (await api("GET", "/health")) as {
+    version?: string;
+    apiVersion?: number;
+  } | null;
+
+  // Apps predating this negotiation behave like API v1.
+  const appApi = typeof health?.apiVersion === "number" ? health.apiVersion : 1;
+  if (appApi !== EXT_API_VERSION) {
+    const appVer = health?.version ?? "不明";
+    throw new Error(
+      `Nook アプリ (v${appVer} / API v${appApi}) とこの拡張 (v${EXT_VERSION} / API v${EXT_API_VERSION}) に互換性がありません。` +
+        `Nook アプリを最新に更新し、サイドバー下部の「Claude Desktop に接続」から拡張を入れ直してください。`,
+    );
+  }
+  compatChecked = true;
+}
+
 /** Call the Nook app's local API. Throws a friendly error if the app is closed. */
 async function api(
   method: string,
   path: string,
   body?: unknown,
 ): Promise<unknown> {
+  // `/health` *is* the negotiation — checking it here would recurse forever.
+  if (path !== "/health") await ensureCompatible();
+
   let res: globalThis.Response;
   try {
     res = await fetch(`${API}${path}`, {
@@ -130,7 +160,7 @@ const fail = (e: unknown) => ({
   isError: true,
 });
 
-const server = new McpServer({ name: "nook", version: "0.1.0" });
+const server = new McpServer({ name: "nook", version: "0.2.0" });
 
 server.tool(
   "list_apps",

@@ -199,6 +199,72 @@ body {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
+/* Update banner: "a new version is available" → click to download + relaunch. */
+.nk-update {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-2);
+  margin-bottom: var(--space-2);
+  border: 1px solid var(--border-accent);
+  border-radius: var(--radius-sm);
+  background: var(--bg-info);
+  color: var(--text-accent);
+  font-family: inherit;
+  font-size: var(--font-size-xs);
+  line-height: var(--line-height-normal);
+  text-align: left;
+  appearance: none;
+}
+.nk-update.is-available {
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--easing-default);
+}
+.nk-update.is-available:hover {
+  background: var(--color-accent-3);
+}
+.nk-update-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: var(--radius-full);
+  background: var(--color-accent-9);
+  flex-shrink: 0;
+}
+.nk-update-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.nk-update-sub {
+  font-size: var(--font-size-xxs);
+  color: var(--text-tertiary);
+}
+.nk-update.is-busy {
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-1);
+}
+.nk-update-bar {
+  height: 3px;
+  border-radius: var(--radius-full);
+  background: var(--color-accent-3);
+  overflow: hidden;
+}
+.nk-update-bar-fill {
+  display: block;
+  height: 100%;
+  background: var(--color-accent-9);
+  transition: width var(--duration-fast) var(--easing-out);
+}
+.nk-update.is-err {
+  background: var(--bg-danger);
+  color: var(--text-danger);
+  border-color: transparent;
+  word-break: break-word;
+}
+
 /* Theme toggle (light / dark / system segmented control) */
 .nk-theme-toggle {
   display: flex;

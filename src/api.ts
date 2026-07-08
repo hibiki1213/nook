@@ -30,10 +30,9 @@ export interface InstallMcpResult {
   ok: boolean;
   version: string;
   mcpbPath: string;
-  log: string;
 }
 
-/** Repack the MCP bundle and open it for Claude Desktop's Install/Update dialog. */
+/** Hand the app-bundled .mcpb to Claude Desktop (its Install/Update dialog). */
 export const installMcp = () => invoke<InstallMcpResult>("install_mcp");
 
 /** Copy a picked file into the images dir → returns the `nook-img://` value. */

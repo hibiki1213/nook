@@ -89,13 +89,10 @@ pub fn get_images_dir() -> CmdResult<String> {
     Ok(crate::images::images_dir()?.display().to_string())
 }
 
-/// Repack the MCP `.mcpb` (bumped version) and open it so Claude Desktop shows
-/// its Install/Update dialog. Runs off the main thread — the pack can take a
-/// while (esbuild + dxt).
+/// Hand the app-bundled `.mcpb` to Claude Desktop so it shows its Install/Update
+/// dialog. The bundle ships as a Tauri resource, so the user's machine needs no
+/// Node/pnpm — see `mcp.rs`.
 #[tauri::command]
-pub async fn install_mcp() -> CmdResult<crate::mcp::InstallResult> {
-    match tauri::async_runtime::spawn_blocking(crate::mcp::install).await {
-        Ok(inner) => Ok(inner?),
-        Err(e) => Err(anyhow::anyhow!("MCP更新タスクが失敗しました: {e}").into()),
-    }
+pub fn install_mcp(app: tauri::AppHandle) -> CmdResult<crate::mcp::InstallResult> {
+    Ok(crate::mcp::install(&app)?)
 }

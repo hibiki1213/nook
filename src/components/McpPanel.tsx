@@ -2,8 +2,9 @@ import { useState } from "react";
 import { Button } from "@emobi/ui";
 import { installMcp } from "../api";
 
-// Sidebar panel: one click repacks the MCP bundle and hands the .mcpb to Claude
-// Desktop, which shows its own Install/Update dialog.
+// Sidebar panel: hands the app-bundled .mcpb to Claude Desktop, which shows its own
+// Install/Update dialog. The bundle ships inside the app, so there is nothing to
+// build here and no Node/pnpm needed on the user's machine.
 export function McpPanel() {
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; text: string } | null>(
@@ -17,7 +18,7 @@ export function McpPanel() {
       const r = await installMcp();
       setResult({
         ok: true,
-        text: `v${r.version} をパックしました。Claude Desktop のダイアログで「更新」→ アプリを再起動してください。`,
+        text: `Claude Desktop のダイアログで「インストール」を選び、Claude Desktop を再起動してください。(v${r.version})`,
       });
     } catch (e) {
       setResult({
@@ -39,7 +40,7 @@ export function McpPanel() {
         onClick={run}
         className="nk-mcp-btn"
       >
-        {busy ? "パック中…" : "MCP を更新"}
+        {busy ? "準備中…" : "Claude Desktop に接続"}
       </Button>
       {result && (
         <div className={`nk-mcp-msg${result.ok ? " is-ok" : " is-err"}`}>

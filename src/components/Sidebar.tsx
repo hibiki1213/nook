@@ -1,6 +1,7 @@
 import type { AppSummary } from "../types";
 import { McpPanel } from "./McpPanel";
 import { ThemeToggle } from "./ThemeToggle";
+import { UpdateBanner } from "./UpdateBanner";
 
 export function Sidebar({
   apps,
@@ -41,6 +42,7 @@ export function Sidebar({
       </nav>
 
       <div className="nk-sidebar-foot">
+        <UpdateBanner />
         <div className="nk-hint">
           新しいアプリは <b>Claude Desktop</b> に頼んで作れます。
           <br />

@@ -18,11 +18,13 @@ native desktop app. Your data stays in a single SQLite file on your machine.
 
 ## Download
 
-### [⬇️ Download Nook for macOS (Apple Silicon)](https://github.com/hibiki1213/nook/releases/download/v0.1.0/Nook_0.1.0_aarch64.dmg)
+### [⬇️ Download Nook for macOS (Apple Silicon)](https://github.com/hibiki1213/nook/releases/download/v0.2.0/Nook_0.2.0_aarch64.dmg)
 
 `.dmg` · ~15 MB · requires **Apple Silicon** (M1 or later)
 
-Open the `.dmg` and drag **Nook** into your **Applications** folder.
+Open the `.dmg` and drag **Nook** into your **Applications** folder. The Claude Desktop
+extension is bundled inside the app — connect it with one click from the sidebar
+(see [Connect Claude Desktop](#connect-claude-desktop)).
 
 #### First launch (unsigned build)
 
@@ -104,17 +106,25 @@ creates over MCP appear in the UI automatically (it polls every few seconds).
 
 ## Connect Claude Desktop
 
-### Option A — one-click install (recommended)
+### Option A — from inside the app (recommended)
 
-Build the bundle, then double-click it:
+Launch **Nook**, then click **「Claude Desktop に接続」** in the sidebar.
+
+The `.mcpb` extension ships **inside the app bundle**, so the app hands it straight to
+Claude Desktop, which shows its own **Install** dialog. Restart Claude Desktop and
+you're done — nothing to build, and no Node needed (Claude Desktop runs the extension
+with its **built-in Node**).
+
+> The extension version is kept in lockstep with the app version. The two talk to each
+> other over the localhost API, so they must not drift — shipping the extension inside
+> the app is what guarantees that. (Extensions were formerly called DXT; the format is
+> now `.mcpb`.)
+
+To rebuild the bundle by hand while developing:
 
 ```bash
-cd mcp-server && pnpm pack:mcpb   # produces nook.mcpb
+pnpm build:mcpb   # → mcp-server/nook.mcpb (also run automatically by tauri dev/build)
 ```
-
-Open `nook.mcpb` → Claude Desktop shows an **Install** dialog → done. Claude Desktop
-runs it with its **built-in Node**, so there's nothing else to install. (Extensions
-were formerly called DXT; the format is now `.mcpb`.)
 
 ### Option B — manual config (dev)
 
@@ -144,6 +154,49 @@ seconds. Then: *"『SICP』を評価5、読了で追加して"* → `add_record`
 
 `list_apps` · `get_app` · `create_app` · `add_field` · `list_records` ·
 `add_record` · `update_record` · `delete_record`
+
+## Releasing a new version
+
+The app self-updates from GitHub Releases (`tauri-plugin-updater`), so a release needs
+**three** artifacts, not one.
+
+1. **Bump the version in lockstep** — `package.json`, `src-tauri/Cargo.toml`,
+   `src-tauri/tauri.conf.json`, `mcp-server/manifest.json`, `mcp-server/package.json`,
+   and `EXT_VERSION` in `mcp-server/src/index.ts`. The MCP extension ships *inside* the
+   app, so the two must never drift.
+
+2. **Build, signed.** This signature is the updater's minisign key — it is *not* Apple
+   code signing, and proves an update came from you.
+
+   ```bash
+   export TAURI_SIGNING_PRIVATE_KEY="$(cat ~/.tauri/nook.key)"
+   export TAURI_SIGNING_PRIVATE_KEY_PASSWORD=""
+   pnpm tauri build
+   ```
+
+   > ⚠️ `TAURI_SIGNING_PRIVATE_KEY_PATH` is **not** honoured by the bundler. Without the
+   > key the build still exits 0 but silently produces no `.sig`.
+
+3. **Generate the updater manifest.**
+
+   ```bash
+   bash scripts/make-latest-json.sh
+   ```
+
+4. **Create the GitHub Release** tagged `v<version>` and attach all three:
+
+   | file | purpose |
+   |---|---|
+   | `Nook_<version>_aarch64.dmg` | new installs (the Download button above) |
+   | `Nook.app.tar.gz` | the updater's payload |
+   | `latest.json` | the updater's manifest (`endpoints` points here) |
+
+Existing users then see **「新しいバージョン v… があります」** in the sidebar on next
+launch; one click downloads, installs and relaunches.
+
+> 🔑 `~/.tauri/nook.key` is the **private** signing key — never commit it. Lose it and
+> existing installs can never be updated again: they verify against the public key baked
+> into `tauri.conf.json`.
 
 ## Project layout
 

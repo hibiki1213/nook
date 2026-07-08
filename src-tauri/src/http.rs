@@ -13,6 +13,12 @@ use crate::repo;
 
 pub const ADDR: &str = "127.0.0.1:8765";
 
+/// Contract version for the routes below — bumped **only** on a breaking change.
+/// The MCP server refuses to run against a mismatched app, so the two can never
+/// drift silently. (They ship together, but a stale extension can linger inside
+/// Claude Desktop after the app is updated.)
+pub const API_VERSION: u32 = 1;
+
 /// Runs forever on a background thread. A bind failure is logged but does not
 /// crash the app (the UI still works; only Claude integration is unavailable).
 pub fn serve() {
@@ -57,7 +63,12 @@ fn route(method: &Method, segs: &[&str], query: &str, body: &str) -> Result<Valu
     // Path segments bind as `&&str` (match ergonomics); deref coercion turns them
     // into `&str` at the repo call sites.
     match (method, segs) {
-        (Method::Get, []) | (Method::Get, ["health"]) => Ok(json!({ "ok": true, "service": "nook" })),
+        (Method::Get, []) | (Method::Get, ["health"]) => Ok(json!({
+            "ok": true,
+            "service": "nook",
+            "version": env!("CARGO_PKG_VERSION"),
+            "apiVersion": API_VERSION,
+        })),
 
         (Method::Get, ["apps"]) => Ok(Value::Array(repo::list_apps()?)),
         (Method::Post, ["apps"]) => repo::create_app(parse(body)?),
