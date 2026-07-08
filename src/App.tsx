@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useTheme } from "@emobi/ui";
 import { dueCounts, listApps } from "./api";
 import { initFiles } from "./lib/files";
@@ -7,16 +8,32 @@ import type { AppSummary } from "./types";
 import { Sidebar } from "./components/Sidebar";
 import { AppView } from "./components/AppView";
 import { CommandPalette, type Command } from "./components/CommandPalette";
-import { PlusIcon, SunIcon, MoonIcon, MonitorIcon } from "./components/icons";
+import {
+  PlusIcon,
+  SidebarIcon,
+  SunIcon,
+  MoonIcon,
+  MonitorIcon,
+} from "./components/icons";
 
 export default function App() {
   const [apps, setApps] = useState<AppSummary[]>([]);
   const [selected, setSelected] = useState<string>("");
   const [due, setDue] = useState<Record<string, number>>({});
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(
+    () => localStorage.getItem("nk-sidebar") !== "collapsed",
+  );
   // AppView registers its "new record" opener here so the palette can invoke it.
   const newRecordRef = useRef<(() => void) | null>(null);
   const { setTheme } = useTheme();
+
+  const toggleSidebar = useCallback(() => {
+    setSidebarOpen((open) => {
+      localStorage.setItem("nk-sidebar", open ? "collapsed" : "open");
+      return !open;
+    });
+  }, []);
 
   const refreshApps = useCallback(async () => {
     const list = await listApps();
@@ -43,17 +60,38 @@ export default function App() {
     return () => clearInterval(t);
   }, [refreshApps]);
 
-  // ⌘K / Ctrl+K — command palette.
+  // The sidebar clears the macOS traffic lights — but fullscreen hides them,
+  // so the clearance must come
+  // and go with it. CSS keys off the attribute, React off the state.
+  useEffect(() => {
+    const win = getCurrentWindow();
+    const sync = async () => {
+      document.documentElement.dataset.fullscreen = String(
+        await win.isFullscreen(),
+      );
+    };
+    void sync();
+    const unlisten = win.onResized(sync);
+    return () => {
+      void unlisten.then((f) => f());
+    };
+  }, []);
+
+  // ⌘K — command palette. ⌘B — sidebar (VS Code muscle memory).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
         setPaletteOpen((o) => !o);
       }
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "b") {
+        e.preventDefault();
+        toggleSidebar();
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [toggleSidebar]);
 
   const commands = useMemo<Command[]>(() => {
     const cmds: Command[] = [];
@@ -76,6 +114,13 @@ export default function App() {
       });
     }
     cmds.push(
+      {
+        id: "sidebar:toggle",
+        label: "サイドバーを表示 / 隠す",
+        hint: "⌘B",
+        icon: <SidebarIcon size={16} />,
+        run: toggleSidebar,
+      },
       {
         id: "theme:light",
         label: "テーマ: ライト",
@@ -100,7 +145,14 @@ export default function App() {
 
   return (
     <div className="nk-root">
-      <Sidebar apps={apps} selected={selected} onSelect={setSelected} due={due} />
+      <Sidebar
+        apps={apps}
+        selected={selected}
+        onSelect={setSelected}
+        due={due}
+        collapsed={!sidebarOpen}
+        onToggle={toggleSidebar}
+      />
       <main className="nk-main">
         {selected ? (
           <AppView

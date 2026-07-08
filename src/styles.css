@@ -25,66 +25,311 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Composition: only the SIDEBAR floats as a rounded island (via its own
+   margin); the content pane runs full-bleed to the window's top/right/bottom
+   edges. The canvas matches the content surface, so the island reads through
+   its border + shadow alone — one continuous plane, no color seam. */
 .nk-root {
   display: flex;
   height: 100vh;
   overflow: hidden;
+  /* The Nani canvas is painted ONCE here — painting it per-pane would
+     misalign the 16px dot tiles at the seams. Everything above is
+     transparent or carries its own solid surface. */
+  background: var(--bg-radi-dots), var(--bg-gradient-subtle);
+  background-size:
+    16px 16px,
+    auto;
 }
 
-/* Dark-mode surface retune. The design system's dark grays bottom out near
-   black (#111), which makes the content area feel oppressive and collapses the
-   sidebar/content separation. Nudge the surface + border tokens to a softer,
-   more Apple-like charcoal ramp. Text tokens are left to the design system. */
+/* ══ Nani skin ════════════════════════════════════════════════════════════
+   Token skin adopting the Nani design system: blue-tinted neutrals (no pure
+   grays), sky primary, navy-based shadows, one-notch-rounder radii. Structure
+   stays Nook's: type scale, density, grid borders, dark mode and the vibrancy
+   sidebar are untouched. Overrides @emobi/ui tokens by name, so the semantic
+   aliases (--bg-info → accent-2, heatmap ramp → accent-4..10…) cascade. */
+:root,
+[data-theme="light"] {
+  /* Blue-tinted neutral scale (Nani "main"). gray-1 stays #fff. */
+  --color-gray-2: #fbfdff;
+  --color-gray-3: #f6f9fb;
+  --color-gray-4: #f1f6f9;
+  --color-gray-5: #e9eef1;
+  --color-gray-6: #e2eaee;
+  --color-gray-7: #cad3d8;
+  --color-gray-8: #b1bec6;
+  --color-gray-9: #99a2a7;
+  --color-gray-10: #7f8b91;
+  --color-gray-11: #5f6a6f;
+  --color-gray-12: #080d12;
+
+  /* Sky primary. Nani names only the ends (pale bgs + #24afff family);
+     accent-4..8 are interpolations so ramps (heatmap) stay smooth. */
+  --color-accent-1: #f3f9fe;
+  --color-accent-2: #ebf6ff;
+  --color-accent-3: #e5f3ff;
+  --color-accent-4: #d3ecff;
+  --color-accent-5: #bde2ff;
+  --color-accent-6: #9dd6ff;
+  --color-accent-7: #7ccbff;
+  --color-accent-8: #52bdff;
+  --color-accent-9: #24afff;
+  --color-accent-10: #09a5ff;
+  --color-accent-11: #008cf0;
+  --color-accent-12: #0077d4;
+
+  /* Nani hues where they exist. Green/yellow keep their current values:
+     status colors carry meaning in a data app, and Nani has no equivalents. */
+  --color-red: #ff6161;
+  --color-orange: #ffa861;
+  --color-purple: #6f8cff;
+  --color-blue: #24afff;
+
+  /* Fills sit a step lighter than dividers; the shared gray scale can't
+     express both, so pin the aliases explicitly. */
+  --bg-secondary: #f6f9fb;
+  --bg-tertiary: #f1f6f9;
+  --bg-quaternary: #e9eef1;
+  --bg-danger: #fff2f2;
+  --border-light: #e9eef1;
+  --border-medium: #e2eaee;
+  --border-strong: #cad3d8;
+  /* The library uses this for hover emphasis (inputs, checkboxes). It aliases
+     gray-12, which this skin made near-black (#080d12) — pin it to the middle
+     of the neutral scale so hovers deepen instead of turning black. */
+  --border-inverted: #b1bec6;
+
+  /* #24afff fails as text on white (~2.4:1). Fills and rings get the sky;
+     text gets Nani's link blue. Danger text likewise keeps the darker,
+     legible red — the soft #ff6161 is for fills and chips. */
+  --text-accent: #0089f2;
+  --text-danger: #e5484d;
+
+  /* Navy-based shadows (#001428) — Nani never shadows with black. */
+  --shadow-sm: 0 2px 5px -2px #00142814;
+  --shadow-md: 0 2px 8px -1px #00142812;
+  --shadow-lg: 0 6px 14px #00142814;
+  --shadow-xl: 0 0 18px #00142821, 0 23px 45px -18px #00142857;
+  /* Floating surfaces draw their edge with a 1px ring + blur, not a border. */
+  --shadow-popover: #14283c0d 0 0 0 1px, #14283c1a 0 5px 14px;
+  /* Cards get Nani's white inset top-edge sheen. */
+  --shadow-card: 0 2.5px 6px -2px #00142814, 0 1px 0 0 inset #ffffffb3;
+
+  /* One notch rounder across the board. Pill/full stay. */
+  --radius-xs: 0.35rem;
+  --radius-sm: 0.52rem;
+  --radius-md: 0.65rem;
+  --radius-lg: 0.85rem;
+  --radius-xl: 1rem;
+
+  /* Motion vocabulary — entrances only (see the keyframes below). Springs
+     are for micro-interactions (stars, checks), never for data movement. */
+  --ease-bounce: cubic-bezier(0, 0.7, 0, 1.5);
+  --ease-spring: linear(
+    0 0%, 0.55 7%, 1.1 20%, 1.15 21%, 1.1 25%, 1.1 31%,
+    1.05 37%, 1 41%, 1 48%, 0.98 49%, 0.96 57%, 1 80%, 1 100%
+  );
+  --ease-spring-subtle: linear(
+    0 0%, 0.44 18%, 0.77 32%, 0.97 40%, 1.01 50%, 1.005 65%, 1 80%, 1 100%
+  );
+
+  /* Translucent blue-gray layer (Nani second-layer): tints whatever it sits
+     on instead of painting opaque. */
+  --color-second-layer-bg: #296c930f;
+
+  /* Nani garnish: ice gradient + dot grid (empty states only — never behind
+     data), and the sky selection highlight. */
+  --bg-gradient-subtle: linear-gradient(0deg, #fff, #f9fdff 45%, #f4fcff);
+  --bg-radi-dots: radial-gradient(#e2eaef 1.2px, transparent 1.2px);
+  --color-selection: #26beff4d;
+}
+
+/* Dark mode is Nook's own asset (Nani is light-only): the same grammar —
+   blue-cast neutrals, sky primary, never-pure-black — translated onto a
+   charcoal ramp. Replaces the old purple-gray dark retune. */
 [data-theme="dark"] {
-  --bg-primary: #1c1c1e; /* content & cards — was ~#111 (too black) */
-  --bg-secondary: #242428; /* sidebar / table headers / board columns */
-  --bg-tertiary: #2d2d32; /* hover, chips, inert fills */
-  --bg-quaternary: #37373d;
-  --border-light: #313137; /* dividers that actually read on dark */
-  --border-medium: #3b3b42;
-  --border-strong: #4a4a52; /* input outlines */
+  --color-gray-4: #232b33;
+  --color-gray-5: #2b343d;
+  --color-gray-6: #35414b;
+  --color-gray-7: #435160;
+  --color-gray-9: #6e7d88;
+  --color-gray-11: #a7b4bd;
+
+  --color-accent-1: #0d2133;
+  --color-accent-2: #102a41;
+  --color-accent-3: #143450;
+  --color-accent-4: #1a4160;
+  --color-accent-5: #205077;
+  --color-accent-6: #29679b;
+  --color-accent-7: #3181c4;
+  --color-accent-8: #2f9dec;
+  --color-accent-9: #3bb7ff;
+  --color-accent-10: #5ec4ff;
+  --color-accent-11: #7ed0ff;
+  --color-accent-12: #a6dfff;
+
+  --bg-primary: #171d23; /* content & cards */
+  --bg-secondary: #1e262d; /* sidebar / table headers / board columns */
+  --bg-tertiary: #27313a; /* hover, chips, inert fills */
+  --bg-quaternary: #303c46;
+  --bg-danger: #311b1e;
+  --border-light: #2b343d;
+  --border-medium: #35404a;
+  --border-strong: #46535f;
+  --border-inverted: #5c6b77; /* hover emphasis — not the glaring #eee */
+
+  --text-primary: #e9eff4;
+  --text-secondary: #a7b4bd;
+  --text-tertiary: #77848d;
+  --text-light: #5b676f;
+  --text-accent: #4dbeff;
+  --text-danger: #ff7b7b;
+
+  --shadow-sm: 0 2px 5px -2px #00000066;
+  --shadow-md: 0 2px 8px -1px #00000073;
+  --shadow-lg: 0 6px 14px #00000059;
+  --shadow-xl: 0 0 18px #00000059, 0 23px 45px -18px #000000a6;
+  --shadow-popover: #ffffff14 0 0 0 1px, #00000073 0 5px 14px;
+  --shadow-card: 0 2.5px 6px -2px #00000059, 0 1px 0 0 inset #ffffff0f;
+
+  --bg-gradient-subtle: linear-gradient(0deg, #171d23, #182028 45%, #182430);
+  --bg-radi-dots: radial-gradient(#2b343d 1.2px, transparent 1.2px);
+  --color-second-layer-bg: #7cc4ff14;
+}
+
+::selection {
+  background: var(--color-selection);
+}
+
+/* Nani entrance keyframes. RULE: entrances belong to overlays (modal, menu,
+   palette, toast) ONLY — never to table rows or board cards, which the
+   4-second MCP poll re-renders. */
+@keyframes nk-fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes nk-scale-up-in {
+  from {
+    opacity: 0;
+    transform: scale(0.5) translateY(100%);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 /* ── Sidebar ─────────────────────────────────────────────────────────────── */
 .nk-sidebar {
   width: 248px;
   flex-shrink: 0;
-  /* Translucent over the vibrancy layer; degrades to a solid-ish panel if
-     vibrancy is unavailable. */
-  background: color-mix(in srgb, var(--bg-secondary) 68%, transparent);
-  border-right: 1px solid var(--border-light);
+  /* An island: its own rounded surface with the Nani card sheen, floating on
+     the canvas. The margin is what makes it float — the right side of it is
+     the gutter to the full-bleed content pane. */
+  background: var(--bg-primary);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  margin: var(--space-2);
   display: flex;
   flex-direction: column;
   padding: 0 var(--space-3) var(--space-3);
+  /* Collapsed = a narrow icon rail (logo / app icons / reopen), not gone.
+     Labels are cut instantly so the width animation only clips, never wraps. */
+  transition: width 0.25s var(--easing-default);
+}
+.nk-sidebar.is-collapsed {
+  width: 68px;
+  padding: 0 var(--space-2) var(--space-3);
+}
+.nk-sidebar.is-collapsed .nk-sidebar-label,
+.nk-sidebar.is-collapsed .nk-sidebar-foot,
+.nk-sidebar.is-collapsed .nk-app-name,
+.nk-sidebar.is-collapsed .nk-hint {
+  display: none;
+}
+/* Brand row becomes a column: logo on top, the reopen toggle right under it.
+   The 68px rail has no room beside the lights, so here (and only here) the
+   logo drops BELOW them — 34px clears their row. */
+.nk-sidebar.is-collapsed .nk-brand {
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: 34px 0 var(--space-3);
+}
+[data-fullscreen="true"] .nk-sidebar.is-collapsed .nk-brand {
+  padding-top: var(--space-2);
+}
+.nk-sidebar.is-collapsed .nk-app-item {
+  justify-content: center;
+  padding: var(--space-2) 0;
+}
+.nk-sidebar.is-collapsed .nk-app-icon {
+  font-size: var(--font-size-md);
+}
+/* Due badge shrinks to a sky dot pinned to the icon's corner. */
+.nk-sidebar.is-collapsed .nk-app-due {
+  position: absolute;
+  top: 3px;
+  right: 8px;
+  margin: 0;
+  min-width: 0;
+  width: 8px;
+  height: 8px;
+  padding: 0;
+  font-size: 0;
 }
 
-/* In dark mode the translucent sidebar over a dark vibrancy layer gets muddy
-   and low-contrast — make it a mostly-solid panel (keep a hint of vibrancy)
-   and strengthen the divider so it separates cleanly from the content. */
+/* On dark the 1px light border vanishes — use the medium one for both islands. */
 [data-theme="dark"] .nk-sidebar {
-  background: color-mix(in srgb, var(--bg-secondary) 88%, transparent);
-  border-right-color: var(--border-medium);
+  border-color: var(--border-medium);
 }
 
-/* Drag strip clearing the overlaid traffic lights (macOS). */
-.nk-titlebar-drag {
-  height: 30px;
-  flex-shrink: 0;
-}
-
+/* Titlebar row — just the collapse toggle, right-aligned (clear of the
+   overlaid traffic lights on the row's left). The empty run of the row is
+   the window drag handle (data-tauri-drag-region). */
 .nk-brand {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-semibold);
-  color: var(--text-primary);
-  padding: var(--space-2) var(--space-2) var(--space-4);
-}
-.nk-brand-mark {
-  color: var(--color-accent-9);
+  justify-content: flex-end;
+  padding: 6px var(--space-2) var(--space-3);
 }
 
+/* Collapse/reopen button — shared look for the in-sidebar and floating one. */
+.nk-sidebar-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition:
+    background var(--duration-fast) var(--easing-default),
+    color var(--duration-fast) var(--easing-default);
+}
+.nk-sidebar-toggle:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
 .nk-sidebar-label {
   font-size: var(--font-size-xxs);
   font-weight: var(--font-weight-semibold);
@@ -103,6 +348,7 @@ body {
 }
 
 .nk-app-item {
+  position: relative; /* anchors the collapsed-rail due dot */
   display: flex;
   align-items: center;
   gap: var(--space-2);
@@ -142,7 +388,9 @@ body {
   min-width: 18px;
   padding: 1px 5px;
   border-radius: var(--radius-pill);
-  background: var(--color-accent-9);
+  /* accent-12, not 9: white 10px text needs the dark end of the sky ramp
+     (and in dark mode accent-12 flips light against the inverted text). */
+  background: var(--color-accent-12);
   color: var(--text-inverted);
   font-size: var(--font-size-xxs);
   font-weight: var(--font-weight-semibold);
@@ -299,11 +547,13 @@ body {
 }
 
 /* ── Main / app view ─────────────────────────────────────────────────────── */
+/* Full-bleed pane — deliberately NOT an island (no radius/border/shadow):
+   it owns the window's top, right and bottom edges. Transparent, so the
+   root's canvas runs uninterrupted behind header, body and the no-app state. */
 .nk-main {
   flex: 1;
   min-width: 0;
   overflow: hidden;
-  background: var(--bg-primary);
 }
 .nk-appview {
   display: flex;
@@ -311,13 +561,14 @@ body {
   height: 100%;
 }
 
+/* Borderless, transparent toolbar — it floats at the top of the content
+   island rather than sectioning it off. */
 .nk-appheader {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-4);
   padding: var(--space-4) var(--space-6);
-  border-bottom: 1px solid var(--border-light);
 }
 .nk-appheader-spacer {
   flex: 1;
@@ -365,6 +616,8 @@ body {
   flex: 1;
   overflow: auto;
   padding: var(--space-6);
+  /* Transparent — the canvas is painted once by .nk-main behind header and
+     body alike, so there is no seam between them. */
 }
 
 /* ── Table view ──────────────────────────────────────────────────────────── */
@@ -448,11 +701,12 @@ body {
   border-radius: var(--radius-md);
   padding: var(--space-3);
   cursor: pointer;
-  box-shadow: var(--shadow-sm);
+  /* Nani card sheen: soft navy drop + 1px white inset on the top edge. */
+  box-shadow: var(--shadow-card);
   transition: box-shadow var(--duration-fast) var(--easing-default);
 }
 .nk-card:hover {
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--shadow-card), var(--shadow-md);
 }
 .nk-card-title {
   font-size: var(--font-size-sm);
@@ -554,10 +808,19 @@ body {
   padding: 0;
   cursor: pointer;
   color: var(--color-gray-6);
-  transition: color var(--duration-fast) var(--easing-default);
+  transition:
+    color var(--duration-fast) var(--easing-default),
+    transform 0.2s var(--ease-spring);
 }
 .nk-stars-input .nk-star.is-on {
   color: var(--color-orange);
+}
+/* Spring micro-interaction — stars are one of the few places bounce belongs. */
+.nk-stars-input .nk-star:hover {
+  transform: scale(1.2);
+}
+.nk-stars-input .nk-star:active {
+  transform: scale(0.92);
 }
 
 /* Tag input (form) */
@@ -627,8 +890,8 @@ body {
   transition: border-color var(--duration-fast) var(--easing-default);
 }
 .nk-taginput-field:focus {
-  border-color: var(--border-accent);
-  box-shadow: 0 0 0 3px var(--color-accent-3);
+  border-color: var(--color-accent-9);
+  box-shadow: 0 0 0 3.5px color-mix(in srgb, var(--color-accent-9) 20%, transparent);
 }
 
 /* ── Forms ───────────────────────────────────────────────────────────────── */
@@ -667,8 +930,8 @@ body {
   transition: border-color var(--duration-fast) var(--easing-default);
 }
 .nk-textarea:focus {
-  border-color: var(--border-accent);
-  box-shadow: 0 0 0 3px var(--color-accent-3);
+  border-color: var(--color-accent-9);
+  box-shadow: 0 0 0 3.5px color-mix(in srgb, var(--color-accent-9) 20%, transparent);
 }
 
 .nk-select {
@@ -690,8 +953,8 @@ body {
   transition: border-color var(--duration-fast) var(--easing-default);
 }
 .nk-select select:focus {
-  border-color: var(--border-accent);
-  box-shadow: 0 0 0 3px var(--color-accent-3);
+  border-color: var(--color-accent-9);
+  box-shadow: 0 0 0 3.5px color-mix(in srgb, var(--color-accent-9) 20%, transparent);
 }
 .nk-select-chevron {
   position: absolute;
@@ -706,7 +969,8 @@ body {
 .nk-modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.35);
+  /* Navy scrim, not black — matches the shadow family. */
+  background: #0014284d;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -723,7 +987,7 @@ body {
   background: var(--bg-primary);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-xl);
-  animation: emobi-slide-up var(--duration-normal) var(--easing-default);
+  animation: nk-fade-in-up 0.27s var(--easing-out);
 }
 
 /* Right-docked panel variant (record editing) */
@@ -741,7 +1005,7 @@ body {
   background: var(--bg-primary);
   border-left: 1px solid var(--border-light);
   box-shadow: var(--shadow-xl);
-  animation: nk-slide-in-right var(--duration-normal) var(--easing-default);
+  animation: nk-slide-in-right 0.18s var(--easing-out);
 }
 @keyframes nk-slide-in-right {
   from {
@@ -758,7 +1022,7 @@ body {
 .nk-cmd-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.35);
+  background: #0014284d;
   display: flex;
   align-items: flex-start;
   justify-content: center;
@@ -773,11 +1037,12 @@ body {
   display: flex;
   flex-direction: column;
   background: var(--bg-primary);
-  border: 1px solid var(--border-light);
+  /* Edge drawn by the popover ring, not a border. */
+  border: none;
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-xl);
+  box-shadow: var(--shadow-popover), var(--shadow-xl);
   overflow: hidden;
-  animation: emobi-slide-up var(--duration-normal) var(--easing-default);
+  animation: nk-fade-in-up 0.27s var(--easing-out);
 }
 .nk-cmd-search {
   display: flex;
@@ -887,6 +1152,7 @@ body {
   font-size: var(--font-size-sm);
   text-align: center;
   padding: var(--space-8);
+  /* The dot canvas comes from .nk-appbody now — no second layer here. */
 }
 
 /* ── Image field (thumbnail + form preview) ──────────────────────────────── */
@@ -956,7 +1222,7 @@ body {
   font-size: var(--font-size-xxs);
   text-align: center;
   color: var(--text-inverted);
-  background: rgba(0, 0, 0, 0.45);
+  background: #00142873;
   opacity: 0;
   transition: opacity var(--duration-fast) var(--easing-default);
 }
@@ -1121,7 +1387,8 @@ body {
   align-items: center;
   gap: 4px;
   max-width: 100%;
-  background: var(--bg-tertiary);
+  /* Translucent — tints the row hover underneath instead of covering it. */
+  background: var(--color-second-layer-bg);
   border: 1px solid var(--border-light);
   border-radius: var(--radius-pill);
   padding: 2px var(--space-2);
@@ -1587,11 +1854,11 @@ body {
   min-width: 176px;
   padding: var(--space-1);
   background: var(--bg-primary);
-  border: 1px solid var(--border-light);
+  border: none;
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--shadow-popover);
   z-index: 40;
-  animation: emobi-fade-in var(--duration-fast) var(--easing-out);
+  animation: nk-fade-in-up 0.2s var(--easing-out);
 }
 .nk-menu-right {
   right: 0;
@@ -1674,7 +1941,7 @@ body {
   color: var(--text-inverted);
   box-shadow: var(--shadow-lg);
   font-size: var(--font-size-sm);
-  animation: emobi-slide-up var(--duration-normal) var(--easing-default);
+  animation: nk-scale-up-in 0.35s var(--ease-bounce);
 }
 .nk-toast.is-success {
   background: var(--text-success);
@@ -1753,4 +2020,78 @@ body {
 }
 .nk-table tbody tr.is-selected:hover {
   background: var(--color-accent-3);
+}
+
+/* ── Nani skin: @emobi/ui component adaptations ──────────────────────────
+   The library paints primary buttons with accent-9 + white text. Nani's sky
+   (#24afff) is ~2.4:1 behind white 12px text, so buttons take the darker
+   link-blue family; the sky stays on hovers, rings and fills without text.
+   (Same-specificity selectors — this file loads after the library CSS.) */
+.Button_primary {
+  background-color: #0089f2;
+  border-color: #0089f2;
+}
+.Button_primary:hover:not(:disabled) {
+  background-color: #007ee0;
+  border-color: #007ee0;
+}
+.Button_primary:active:not(:disabled) {
+  background-color: #0072cb;
+  border-color: #0072cb;
+}
+/* Focus indicators need ≥3:1 — ring with accent-11 (#008cf0), not the sky. */
+.Button_button:focus-visible {
+  box-shadow:
+    0 0 0 2px var(--bg-primary),
+    0 0 0 4px var(--color-accent-11);
+}
+
+/* Nani text-field focus: the sky border with a soft translucent halo that
+   GROWS in (box-shadow joins the transition), instead of the old hard pale
+   ring snapping on. One recipe for every text input, library and Nook alike. */
+.Input_input,
+.nk-taginput-field,
+.nk-textarea,
+.nk-select select {
+  transition:
+    border-color 0.15s var(--easing-default),
+    box-shadow 0.15s var(--easing-default),
+    background var(--duration-fast) var(--easing-default);
+}
+/* The second selector out-specifies the library's hover rule, which otherwise
+   BEATS focus (its :not(.Input_error) chain weighs more) — that was the dark
+   border flashing on while clicking into a field. */
+.Input_input:focus:not(.Input_error),
+.Input_input:focus:hover:not(:disabled):not(.Input_error) {
+  border-color: var(--color-accent-9);
+  box-shadow: 0 0 0 3.5px color-mix(in srgb, var(--color-accent-9) 20%, transparent);
+}
+
+/* Checked box pops in on a spring — a micro-interaction, so bounce is allowed
+   (and it makes completing a task feel like something). */
+@keyframes nk-check-pop {
+  0% {
+    transform: scale(0.65);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+.Checkbox_checked .Checkbox_box {
+  animation: nk-check-pop 0.3s var(--ease-spring);
+}
+/* Hover previews the action in sky instead of outlining the box in black —
+   and a hovered CHECKED box keeps border = fill (no dark ring around it). */
+.Checkbox_wrapper:not(.Checkbox_disabled):hover .Checkbox_box {
+  border-color: var(--color-accent-9);
+}
+.Checkbox_wrapper.Checkbox_checked:not(.Checkbox_disabled):hover .Checkbox_box,
+.Checkbox_wrapper.Checkbox_indeterminate:not(.Checkbox_disabled):hover .Checkbox_box {
+  border-color: var(--color-accent-9);
+  background-color: var(--color-accent-10);
+}
+.Checkbox_nativeInput:focus-visible ~ .Checkbox_box {
+  box-shadow:
+    0 0 0 2px var(--bg-primary),
+    0 0 0 4px var(--color-accent-11);
 }

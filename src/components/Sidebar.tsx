@@ -1,4 +1,5 @@
 import type { AppSummary } from "../types";
+import { SidebarIcon } from "./icons";
 import { McpPanel } from "./McpPanel";
 import { ThemeToggle } from "./ThemeToggle";
 import { UpdateBanner } from "./UpdateBanner";
@@ -8,18 +9,32 @@ export function Sidebar({
   selected,
   onSelect,
   due = {},
+  collapsed = false,
+  onToggle,
 }: {
   apps: AppSummary[];
   selected: string;
   onSelect: (id: string) => void;
   /** appId → count of records due today (reminded date fields). */
   due?: Record<string, number>;
+  collapsed?: boolean;
+  onToggle?: () => void;
 }) {
   return (
-    <aside className="nk-sidebar">
-      {/* Draggable strip under the overlaid traffic-light buttons. */}
-      <div className="nk-titlebar-drag" data-tauri-drag-region />
-      <div className="nk-brand">Nook</div>
+    <aside className={`nk-sidebar${collapsed ? " is-collapsed" : ""}`}>
+      {/* The brand row doubles as the titlebar: the toggle sits clear of the
+          overlaid traffic lights, and the row is the window drag handle. */}
+      <div className="nk-brand" data-tauri-drag-region>
+        <button
+          type="button"
+          className="nk-sidebar-toggle"
+          onClick={onToggle}
+          title={collapsed ? "サイドバーを開く (⌘B)" : "サイドバーを畳む (⌘B)"}
+          aria-label={collapsed ? "サイドバーを開く" : "サイドバーを畳む"}
+        >
+          <SidebarIcon size={16} />
+        </button>
+      </div>
 
       <div className="nk-sidebar-label">アプリ</div>
       <nav className="nk-app-list">
@@ -28,6 +43,7 @@ export function Sidebar({
             key={a.id}
             className={`nk-app-item${selected === a.id ? " is-active" : ""}`}
             onClick={() => onSelect(a.id)}
+            title={collapsed ? a.name : undefined}
           >
             <span className="nk-app-icon">{a.icon ?? "🗂"}</span>
             <span className="nk-app-name">{a.name}</span>

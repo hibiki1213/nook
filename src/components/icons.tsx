@@ -41,6 +41,13 @@ export const ImageIcon = (p: IconProps) => (
   </svg>
 );
 
+export const SidebarIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <rect x="3" y="4" width="18" height="16" rx="2" />
+    <path d="M9.5 4v16" />
+  </svg>
+);
+
 export const FileIcon = (p: IconProps) => (
   <svg {...base(p)}>
     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />

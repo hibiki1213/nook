@@ -157,6 +157,21 @@ seconds. Then: *"『SICP』を評価5、読了で追加して"* → `add_record`
 
 ## Releasing a new version
 
+One command — the version and a summary are the only variables:
+
+```bash
+bash scripts/release.sh 0.4.0 "リリース概要をここに"
+```
+
+It bumps every version in lockstep, builds signed, generates the updater
+manifest, commits + pushes, creates the GitHub release with all three assets,
+and verifies the published URLs. It refuses to run on a dirty tree, off main,
+out of sync with origin, or with a used tag.
+
+The manual steps below are kept for reference / debugging.
+
+---
+
 The app self-updates from GitHub Releases (`tauri-plugin-updater`), so a release needs
 **three** artifacts, not one.
 
