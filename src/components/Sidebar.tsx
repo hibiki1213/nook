@@ -1,5 +1,5 @@
 import type { AppSummary } from "../types";
-import { GearIcon, SidebarIcon } from "./icons";
+import { GearIcon, PlusIcon, SidebarIcon } from "./icons";
 import { McpPanel } from "./McpPanel";
 import { ThemeToggle } from "./ThemeToggle";
 import { UpdateBanner } from "./UpdateBanner";
@@ -12,6 +12,7 @@ export function Sidebar({
   collapsed = false,
   onToggle,
   onOpenSettings,
+  onNewApp,
 }: {
   apps: AppSummary[];
   selected: string;
@@ -21,6 +22,7 @@ export function Sidebar({
   collapsed?: boolean;
   onToggle?: () => void;
   onOpenSettings?: () => void;
+  onNewApp?: () => void;
 }) {
   return (
     <aside className={`nk-sidebar${collapsed ? " is-collapsed" : ""}`}>
@@ -57,6 +59,17 @@ export function Sidebar({
           </button>
         ))}
         {!apps.length && <div className="nk-hint">まだアプリがありません</div>}
+        <button
+          type="button"
+          className="nk-app-item nk-app-new"
+          onClick={onNewApp}
+          title={collapsed ? "新規アプリ" : undefined}
+        >
+          <span className="nk-app-icon">
+            <PlusIcon size={14} />
+          </span>
+          <span className="nk-app-name">新規アプリ</span>
+        </button>
       </nav>
 
       <div className="nk-sidebar-foot">

@@ -100,6 +100,44 @@ pub fn add_field(app_id: &str, field: Value) -> Result<Value> {
     Ok(serde_json::to_value(def)?)
 }
 
+/// Replace an app's full definition (name / icon / fields / views) and
+/// reconcile the physical table (see `db::reconcile_table`). Dropping a field
+/// only drops its generated column — the values stay in each record's JSON,
+/// so re-adding the field later resurfaces them. UI-only (the app builder);
+/// the MCP surface keeps its narrower create_app / add_field vocabulary.
+pub fn update_app(app_id: &str, definition: Value) -> Result<Value> {
+    let def: AppDefinition =
+        serde_json::from_value(definition).context("invalid app definition")?;
+    if def.id != app_id {
+        return Err(anyhow!("definition id '{}' does not match app '{app_id}'", def.id));
+    }
+    if !is_safe_ident(&def.id) {
+        return Err(anyhow!("app id must match ^[a-z][a-z0-9_]*$: {}", def.id));
+    }
+    for (i, f) in def.fields.iter().enumerate() {
+        if !is_safe_ident(&f.id) {
+            return Err(anyhow!("field id must match ^[a-z][a-z0-9_]*$: {}", f.id));
+        }
+        if def.fields[..i].iter().any(|p| p.id == f.id) {
+            return Err(anyhow!("duplicate field id: {}", f.id));
+        }
+        f.validate().map_err(|e| anyhow!(e))?;
+    }
+    if def.views.is_empty() {
+        return Err(anyhow!("an app needs at least one view"));
+    }
+    let conn = db::open()?;
+    let old = load_definition(&conn, app_id)?;
+    db::reconcile_table(&conn, &old, &def)?;
+    conn.execute(
+        "UPDATE apps SET name = ?1, icon = ?2, definition = ?3,
+             updated_at = datetime('now') WHERE id = ?4",
+        params![def.name, def.icon, serde_json::to_string(&def)?, app_id],
+    )?;
+    db::ensure_table(&conn, &def)?; // re-adds dropped/new columns + indexes
+    Ok(serde_json::to_value(def)?)
+}
+
 /// Delete an app: drop its physical records table (which also drops its indexes)
 /// and remove it from the registry. Destructive — all records are lost. UI-only;
 /// deliberately NOT exposed over the MCP/HTTP surface.

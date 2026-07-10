@@ -14,6 +14,15 @@ export const listApps = () => invoke<AppSummary[]>("list_apps");
 export const getApp = (appId: string) =>
   invoke<AppDefinition>("get_app", { appId });
 
+/** Create an app from a full definition (the manual "新規アプリ" flow). */
+export const createApp = (definition: AppDefinition) =>
+  invoke<AppSummary>("create_app", { definition });
+
+/** Replace an app's full definition — the app builder's save. Returns the
+    definition as the backend normalized it. */
+export const updateApp = (appId: string, definition: AppDefinition) =>
+  invoke<AppDefinition>("update_app", { appId, definition });
+
 export const deleteApp = (appId: string) =>
   invoke<{ deleted: string }>("delete_app", { appId });
 

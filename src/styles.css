@@ -686,6 +686,179 @@ body {
   white-space: nowrap;
 }
 
+/* ── App builder panel ───────────────────────────────────────────────────── */
+.nk-builder {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+.nk-builder-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.nk-builder-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--text-secondary);
+}
+.nk-builder-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  border: none;
+  background: transparent;
+  color: var(--text-accent);
+  font-family: inherit;
+  font-size: var(--font-size-xs);
+  border-radius: var(--radius-sm);
+  padding: 2px var(--space-1);
+  cursor: pointer;
+}
+.nk-builder-add:hover {
+  background: var(--color-accent-3);
+}
+.nk-builder-basics {
+  display: flex;
+  gap: var(--space-2);
+}
+/* Emoji icon box: pin the library Input's WRAPPER (width:100% by default,
+   which otherwise fights the name input for the row) — not the inner input. */
+.nk-builder-basics > .Input_wrapper:first-child {
+  width: 60px;
+  flex-shrink: 0;
+}
+.nk-builder-basics .nk-builder-icon {
+  text-align: center;
+}
+.nk-builder-note {
+  font-size: var(--font-size-xs);
+  color: var(--text-tertiary);
+}
+.nk-builder-hint {
+  margin: 0;
+  font-size: var(--font-size-xs);
+  color: var(--text-tertiary);
+  line-height: var(--line-height-normal);
+}
+
+/* Field / view rows: closed = one line, open = accordion editor. */
+.nk-fieldrow {
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+}
+.nk-fieldrow.is-open {
+  border-color: var(--border-medium);
+  box-shadow: var(--shadow-sm);
+}
+.nk-fieldrow-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-2);
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  color: var(--text-primary);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  text-align: left;
+}
+.nk-fieldrow-head:hover {
+  background: var(--bg-secondary);
+}
+.nk-fieldrow-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.nk-fieldrow-meta {
+  font-size: var(--font-size-xxs);
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+.nk-fieldrow-chevron {
+  color: var(--text-light);
+  font-size: var(--font-size-xxs);
+}
+.nk-fieldrow-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2) var(--space-2);
+  border-top: 1px solid var(--border-light);
+}
+.nk-builder-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.nk-builder-rowlabel {
+  width: 84px;
+  flex-shrink: 0;
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+}
+.nk-builder-rowctl {
+  flex: 1;
+  min-width: 0;
+}
+.nk-builder-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  padding-left: 92px; /* rowlabel width + gap — line up with controls */
+}
+.nk-builder-cols {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.nk-fieldrow-foot {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.nk-builder-reorder {
+  display: flex;
+  gap: 2px;
+}
+.nk-builder-reorder button {
+  border: 1px solid var(--border-light);
+  background: transparent;
+  color: var(--text-secondary);
+  border-radius: var(--radius-xs);
+  width: 24px;
+  height: 24px;
+  cursor: pointer;
+}
+.nk-builder-reorder button:hover:not(:disabled) {
+  background: var(--bg-tertiary);
+}
+.nk-builder-reorder button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.nk-app-new .nk-app-icon {
+  display: inline-flex;
+  color: var(--text-tertiary);
+}
+.nk-app-new {
+  color: var(--text-tertiary);
+}
+.nk-newapp {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
 /* Accent swatch in command-palette rows. */
 .nk-cmd-dot {
   width: 12px;

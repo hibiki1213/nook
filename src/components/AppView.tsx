@@ -17,7 +17,8 @@ import {
 import type { AppDefinition, RecordRow } from "../types";
 import { Modal } from "./primitives";
 import { Menu } from "./Menu";
-import { PlusIcon, MoreIcon, TrashIcon } from "./icons";
+import { AppBuilderPanel } from "./AppBuilderPanel";
+import { PlusIcon, MoreIcon, TrashIcon, EditIcon } from "./icons";
 import { useToast } from "./Toast";
 import { RelationProvider } from "./relations";
 import { TableView } from "./TableView";
@@ -35,11 +36,20 @@ type Editing = RecordRow | null | undefined;
 export function AppView({
   appId,
   onDeleted,
+  onChanged,
   newRecordRef,
+  editAppRef,
+  autoOpenBuilder = false,
 }: {
   appId: string;
   onDeleted?: () => void;
+  /** Name/icon changed via the builder — refresh the sidebar. */
+  onChanged?: () => void;
   newRecordRef?: MutableRefObject<(() => void) | null>;
+  /** Like newRecordRef: lets the command palette open the app builder. */
+  editAppRef?: MutableRefObject<(() => void) | null>;
+  /** Open the builder as soon as the definition loads (right after 新規アプリ). */
+  autoOpenBuilder?: boolean;
 }) {
   const [def, setDef] = useState<AppDefinition | null>(null);
   const [viewId, setViewId] = useState<string>("");
@@ -47,6 +57,7 @@ export function AppView({
   // First-load flag so the empty state doesn't flash before records arrive.
   const [recordsLoaded, setRecordsLoaded] = useState(false);
   const [editing, setEditing] = useState<Editing>(undefined);
+  const [building, setBuilding] = useState(autoOpenBuilder);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const editingRef = useRef<Editing>(undefined);
@@ -110,6 +121,15 @@ export function AppView({
       newRecordRef.current = null;
     };
   }, [newRecordRef]);
+
+  // …and the app builder.
+  useEffect(() => {
+    if (!editAppRef) return;
+    editAppRef.current = () => setBuilding(true);
+    return () => {
+      editAppRef.current = null;
+    };
+  }, [editAppRef]);
 
   if (!def) {
     return (
@@ -206,6 +226,11 @@ export function AppView({
             trigger={<MoreIcon size={18} />}
             items={[
               {
+                label: "アプリを編集",
+                icon: <EditIcon size={15} />,
+                onClick: () => setBuilding(true),
+              },
+              {
                 label: "アプリを削除",
                 danger: true,
                 icon: <TrashIcon size={15} />,
@@ -259,6 +284,21 @@ export function AppView({
           onSave={onSave}
           onDelete={onDelete}
           onClose={() => setEditing(undefined)}
+        />
+      )}
+
+      {building && (
+        <AppBuilderPanel
+          app={def}
+          onUpdated={(d) => {
+            setDef(d);
+            // A deleted view can leave viewId dangling.
+            if (!d.views.some((v) => v.id === viewId)) {
+              setViewId(d.views[0]?.id ?? "");
+            }
+            onChanged?.();
+          }}
+          onClose={() => setBuilding(false)}
         />
       )}
 

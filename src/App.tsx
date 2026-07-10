@@ -10,7 +10,9 @@ import { Sidebar } from "./components/Sidebar";
 import { AppView } from "./components/AppView";
 import { CommandPalette, type Command } from "./components/CommandPalette";
 import { SettingsModal } from "./components/SettingsModal";
+import { NewAppModal } from "./components/NewAppModal";
 import {
+  EditIcon,
   GearIcon,
   PlusIcon,
   SidebarIcon,
@@ -25,11 +27,16 @@ export default function App() {
   const [due, setDue] = useState<Record<string, number>>({});
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [newAppOpen, setNewAppOpen] = useState(false);
+  // Set right after 新規アプリ so the freshly mounted AppView opens its builder.
+  const [builderAppId, setBuilderAppId] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(
     () => localStorage.getItem("nk-sidebar") !== "collapsed",
   );
-  // AppView registers its "new record" opener here so the palette can invoke it.
+  // AppView registers its "new record" / "edit app" openers here so the
+  // palette can invoke them.
   const newRecordRef = useRef<(() => void) | null>(null);
+  const editAppRef = useRef<(() => void) | null>(null);
   const { setTheme } = useTheme();
 
   const toggleSidebar = useCallback(() => {
@@ -105,14 +112,28 @@ export default function App() {
   const commands = useMemo<Command[]>(() => {
     const cmds: Command[] = [];
     if (selected) {
-      cmds.push({
-        id: "new-record",
-        label: "新規レコード",
-        hint: "⌘N",
-        icon: <PlusIcon size={16} />,
-        run: () => newRecordRef.current?.(),
-      });
+      cmds.push(
+        {
+          id: "new-record",
+          label: "新規レコード",
+          hint: "⌘N",
+          icon: <PlusIcon size={16} />,
+          run: () => newRecordRef.current?.(),
+        },
+        {
+          id: "edit-app",
+          label: "アプリを編集",
+          icon: <EditIcon size={16} />,
+          run: () => editAppRef.current?.(),
+        },
+      );
     }
+    cmds.push({
+      id: "new-app",
+      label: "新規アプリ",
+      icon: <PlusIcon size={16} />,
+      run: () => setNewAppOpen(true),
+    });
     for (const a of apps) {
       cmds.push({
         id: `app:${a.id}`,
@@ -176,6 +197,7 @@ export default function App() {
         collapsed={!sidebarOpen}
         onToggle={toggleSidebar}
         onOpenSettings={() => setSettingsOpen(true)}
+        onNewApp={() => setNewAppOpen(true)}
       />
       <main className="nk-main">
         {selected ? (
@@ -183,7 +205,10 @@ export default function App() {
             key={selected}
             appId={selected}
             onDeleted={refreshApps}
+            onChanged={refreshApps}
             newRecordRef={newRecordRef}
+            editAppRef={editAppRef}
+            autoOpenBuilder={selected === builderAppId}
           />
         ) : (
           <div className="nk-empty-state">アプリを選択してください</div>
@@ -195,6 +220,17 @@ export default function App() {
         commands={commands}
       />
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      {newAppOpen && (
+        <NewAppModal
+          onClose={() => setNewAppOpen(false)}
+          onCreated={async (appId) => {
+            setNewAppOpen(false);
+            setBuilderAppId(appId);
+            await refreshApps();
+            setSelected(appId);
+          }}
+        />
+      )}
     </div>
   );
 }

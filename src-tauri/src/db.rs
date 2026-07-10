@@ -132,6 +132,40 @@ pub fn ensure_table(conn: &Connection, def: &AppDefinition) -> Result<()> {
     Ok(())
 }
 
+/// Prepare the physical table for a definition change: drop the index and
+/// generated column of every field that was removed or changed type, so
+/// `ensure_table` can re-add them fresh. Canonical data is the JSON blob, so
+/// dropping a generated column never loses record data — re-adding a field
+/// with the same id (and a compatible type) resurfaces it.
+///
+/// Order matters: SQLite refuses to DROP COLUMN while an index references it,
+/// so indexes go first.
+pub fn reconcile_table(conn: &Connection, old: &AppDefinition, new: &AppDefinition) -> Result<()> {
+    let table = old.table_name();
+    let existing = existing_columns(conn, &table)?;
+    for of in &old.fields {
+        let nf = new.field(&of.id);
+        let drop_col = match nf {
+            None => true,
+            Some(nf) => nf.field_type != of.field_type,
+        };
+        // Also drop a now-stale index when a field merely stops being indexed.
+        if drop_col || nf.map(|nf| !nf.indexed).unwrap_or(true) {
+            conn.execute(
+                &format!("DROP INDEX IF EXISTS \"ix_{}_{}\"", old.id, of.id),
+                [],
+            )?;
+        }
+        if drop_col && existing.contains(&format!("f_{}", of.id)) {
+            conn.execute(
+                &format!("ALTER TABLE \"{table}\" DROP COLUMN \"f_{}\"", of.id),
+                [],
+            )?;
+        }
+    }
+    Ok(())
+}
+
 fn existing_columns(conn: &Connection, table: &str) -> Result<Vec<String>> {
     // table_xinfo (not table_info) so generated columns are included — otherwise
     // we'd try to re-ADD columns that already exist.
@@ -217,5 +251,58 @@ mod tests {
         assert!(cols.contains(&"f_note".to_string()));
         assert!(cols.contains(&"f_title".to_string()));
         assert!(cols.contains(&"f_labels".to_string()));
+    }
+
+    #[test]
+    fn reconcile_drops_removed_and_retyped_columns_without_losing_data() {
+        let conn = Connection::open_in_memory().unwrap();
+        init(&conn).unwrap();
+        let old = test_def();
+        ensure_table(&conn, &old).unwrap();
+        conn.execute(
+            "INSERT INTO \"d_test\" (data) VALUES (json(?1))",
+            [r#"{"title":"hi","rating":"A","stars":4}"#],
+        )
+        .unwrap();
+
+        // New definition: `rating` (indexed select) removed, `stars` retyped
+        // rating→text, everything else kept.
+        let mut new = test_def();
+        new.fields.retain(|f| f.id != "rating");
+        for f in &mut new.fields {
+            if f.id == "stars" {
+                f.field_type = FieldType::Text;
+            }
+        }
+        reconcile_table(&conn, &old, &new).unwrap();
+        ensure_table(&conn, &new).unwrap();
+
+        let cols = existing_columns(&conn, "d_test").unwrap();
+        assert!(!cols.contains(&"f_rating".to_string()));
+        assert!(cols.contains(&"f_stars".to_string())); // re-added with TEXT affinity
+
+        // The JSON kept everything: re-adding `rating` resurfaces the value.
+        let back = Field {
+            id: "rating".into(),
+            label: "Rating".into(),
+            field_type: FieldType::Select,
+            required: false,
+            options: vec!["A".into(), "B".into()],
+            indexed: true,
+            default: None,
+            max: None,
+            currency: None,
+            app: None,
+            remind: false,
+            multiple: false,
+        };
+        let mut resurrected = new.clone();
+        resurrected.fields.push(back);
+        reconcile_table(&conn, &new, &resurrected).unwrap();
+        ensure_table(&conn, &resurrected).unwrap();
+        let a: i64 = conn
+            .query_row("SELECT count(*) FROM \"d_test\" WHERE f_rating = 'A'", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(a, 1);
     }
 }

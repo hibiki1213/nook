@@ -61,6 +61,7 @@ pub fn run() {
             commands::get_app,
             commands::create_app,
             commands::add_field,
+            commands::update_app,
             commands::delete_app,
             commands::list_records,
             commands::create_record,

@@ -44,6 +44,13 @@ pub fn add_field(app_id: String, field: Value) -> CmdResult<Value> {
     Ok(repo::add_field(&app_id, field)?)
 }
 
+/// Replace an app's definition (the app builder). UI-only (not on the
+/// MCP/HTTP surface).
+#[tauri::command]
+pub fn update_app(app_id: String, definition: Value) -> CmdResult<Value> {
+    Ok(repo::update_app(&app_id, definition)?)
+}
+
 /// Delete an app and all its records. UI-only (not on the MCP/HTTP surface).
 #[tauri::command]
 pub fn delete_app(app_id: String) -> CmdResult<Value> {
