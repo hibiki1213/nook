@@ -18,7 +18,7 @@ native desktop app. Your data stays in a single SQLite file on your machine.
 
 ## Download
 
-### [⬇️ Download Nook for macOS (Apple Silicon)](https://github.com/hibiki1213/nook/releases/download/v0.4.0/Nook_0.4.0_aarch64.dmg)
+### [⬇️ Download Nook for macOS (Apple Silicon)](https://github.com/hibiki1213/nook/releases/download/v0.5.0/Nook_0.5.0_aarch64.dmg)
 
 `.dmg` · ~16 MB · requires **Apple Silicon** (M1 or later)
 
