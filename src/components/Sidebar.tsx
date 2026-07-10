@@ -1,5 +1,5 @@
 import type { AppSummary } from "../types";
-import { SidebarIcon } from "./icons";
+import { GearIcon, SidebarIcon } from "./icons";
 import { McpPanel } from "./McpPanel";
 import { ThemeToggle } from "./ThemeToggle";
 import { UpdateBanner } from "./UpdateBanner";
@@ -11,6 +11,7 @@ export function Sidebar({
   due = {},
   collapsed = false,
   onToggle,
+  onOpenSettings,
 }: {
   apps: AppSummary[];
   selected: string;
@@ -19,6 +20,7 @@ export function Sidebar({
   due?: Record<string, number>;
   collapsed?: boolean;
   onToggle?: () => void;
+  onOpenSettings?: () => void;
 }) {
   return (
     <aside className={`nk-sidebar${collapsed ? " is-collapsed" : ""}`}>
@@ -65,7 +67,18 @@ export function Sidebar({
           例：「読書記録アプリを作って」
         </div>
         <McpPanel />
-        <ThemeToggle />
+        <div className="nk-foot-row">
+          <ThemeToggle />
+          <button
+            type="button"
+            className="nk-settings-btn"
+            title="設定"
+            aria-label="設定"
+            onClick={onOpenSettings}
+          >
+            <GearIcon size={14} />
+          </button>
+        </div>
       </div>
     </aside>
   );

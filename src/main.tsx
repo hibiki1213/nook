@@ -10,8 +10,13 @@ import "@fontsource/inter/600.css";
 import "@fontsource/line-seed-jp/400.css";
 import "@fontsource/line-seed-jp/700.css";
 import "./styles.css";
+import "./accents.css";
 import App from "./App";
 import { ToastProvider } from "./components/Toast";
+import { initAccent } from "./lib/accent";
+
+// Stamp the saved accent before the first paint so there's no sky-blue flash.
+initAccent();
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>

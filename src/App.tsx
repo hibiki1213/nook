@@ -2,13 +2,16 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useTheme } from "@emobi/ui";
 import { dueCounts, listApps } from "./api";
+import { ACCENTS, setAccent } from "./lib/accent";
 import { initFiles } from "./lib/files";
 import { initImages } from "./lib/images";
 import type { AppSummary } from "./types";
 import { Sidebar } from "./components/Sidebar";
 import { AppView } from "./components/AppView";
 import { CommandPalette, type Command } from "./components/CommandPalette";
+import { SettingsModal } from "./components/SettingsModal";
 import {
+  GearIcon,
   PlusIcon,
   SidebarIcon,
   SunIcon,
@@ -21,6 +24,7 @@ export default function App() {
   const [selected, setSelected] = useState<string>("");
   const [due, setDue] = useState<Record<string, number>>({});
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(
     () => localStorage.getItem("nk-sidebar") !== "collapsed",
   );
@@ -64,7 +68,12 @@ export default function App() {
   // so the clearance must come
   // and go with it. CSS keys off the attribute, React off the state.
   useEffect(() => {
-    const win = getCurrentWindow();
+    let win: ReturnType<typeof getCurrentWindow>;
+    try {
+      win = getCurrentWindow();
+    } catch {
+      return; // plain-browser dev (vite without tauri) — no window API
+    }
     const sync = async () => {
       document.documentElement.dataset.fullscreen = String(
         await win.isFullscreen(),
@@ -139,7 +148,21 @@ export default function App() {
         icon: <MonitorIcon size={16} />,
         run: () => setTheme("system"),
       },
+      {
+        id: "settings",
+        label: "設定を開く",
+        icon: <GearIcon size={16} />,
+        run: () => setSettingsOpen(true),
+      },
     );
+    for (const a of ACCENTS) {
+      cmds.push({
+        id: `accent:${a.id}`,
+        label: `アクセント: ${a.label}`,
+        icon: <span className="nk-cmd-dot" style={{ background: a.dot }} />,
+        run: () => setAccent(a.id),
+      });
+    }
     return cmds;
   }, [apps, selected, setTheme]);
 
@@ -152,6 +175,7 @@ export default function App() {
         due={due}
         collapsed={!sidebarOpen}
         onToggle={toggleSidebar}
+        onOpenSettings={() => setSettingsOpen(true)}
       />
       <main className="nk-main">
         {selected ? (
@@ -170,6 +194,7 @@ export default function App() {
         onClose={() => setPaletteOpen(false)}
         commands={commands}
       />
+      <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </div>
   );
 }
