@@ -11,7 +11,7 @@ import { z } from "zod";
 const API = process.env.NOOK_API || "http://127.0.0.1:8765";
 
 /** This extension's version — in lockstep with the app, which ships it inside itself. */
-const EXT_VERSION = "0.5.1";
+const EXT_VERSION = "0.5.2";
 /** Contract version. Must match `API_VERSION` in `src-tauri/src/http.rs`. */
 const EXT_API_VERSION = 1;
 
