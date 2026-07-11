@@ -3,7 +3,7 @@
 // applies immediately via update_app — no draft/save step. Field ids are
 // deliberately never shown: they're auto-numbered (field_1, …) and immutable,
 // so "rename" is always just a label change.
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Button, Checkbox, Input } from "@emobi/ui";
 import { getApp, listApps, updateApp } from "../api";
 import type {
@@ -11,11 +11,13 @@ import type {
   AppSummary,
   Field,
   FieldType,
+  SortSpec,
   View,
 } from "../types";
 import { Modal, TagInput } from "./primitives";
 import { PlusIcon, TrashIcon } from "./icons";
 import { useToast } from "./Toast";
+import { makeBlock, parseBlock } from "../lib/blocks";
 
 export const FIELD_TYPES: { value: FieldType; label: string }[] = [
   { value: "text", label: "テキスト" },
@@ -41,6 +43,7 @@ const VIEW_TYPES: { value: NonNullable<View["type"]>; label: string }[] = [
   { value: "summary", label: "集計" },
   { value: "chart", label: "チャート" },
   { value: "heatmap", label: "ヒートマップ" },
+  { value: "page", label: "ページ（複数ビュー）" },
 ];
 
 const typeLabel = (t: FieldType) =>
@@ -108,6 +111,351 @@ function PickRow({
   );
 }
 
+/** Generic reorderable row list (drag the ⠿ grip, or the ↑/↓ buttons).
+ *  Pointer-based, NOT HTML5 drag & drop — the Tauri webview's native drag
+ *  handler swallows HTML5 drag events (see BoardView for the same story). */
+function ReorderList({
+  items,
+  onMove,
+  onRemove,
+  removeTitle,
+  canRemove = true,
+}: {
+  items: { id: string; label: ReactNode }[];
+  onMove: (from: number, to: number) => void;
+  onRemove: (id: string) => void;
+  removeTitle: string;
+  canRemove?: boolean;
+}) {
+  const listRef = useRef<HTMLDivElement | null>(null);
+  const [dragIdx, setDragIdx] = useState<number | null>(null);
+  const [overIdx, setOverIdx] = useState<number | null>(null);
+  // Index of the row under the pointer, by row rects (rows don't move while
+  // dragging — only the highlight does, so rects stay valid).
+  const rowAt = (y: number) => {
+    const rows = listRef.current?.querySelectorAll(".nk-blockrow") ?? [];
+    for (let i = 0; i < rows.length; i++) {
+      const r = rows[i].getBoundingClientRect();
+      if (y >= r.top && y <= r.bottom) return i;
+    }
+    return null;
+  };
+  return (
+    <div className="nk-blocklist" ref={listRef}>
+      {items.map(({ id, label }, i) => (
+        <div
+          key={id}
+          className={`nk-blockrow${
+            overIdx === i && dragIdx !== null && dragIdx !== i
+              ? " is-drag-over"
+              : ""
+          }${dragIdx === i ? " is-dragging" : ""}`}
+        >
+          <span
+            className="nk-blockrow-grip"
+            aria-hidden
+            onPointerDown={(e) => {
+              if (e.button !== 0) return;
+              e.preventDefault(); // no text selection while dragging
+              setDragIdx(i);
+              e.currentTarget.setPointerCapture(e.pointerId);
+            }}
+            onPointerMove={(e) => {
+              if (dragIdx === null) return;
+              setOverIdx(rowAt(e.clientY));
+            }}
+            onPointerUp={() => {
+              if (dragIdx !== null && overIdx !== null) {
+                onMove(dragIdx, overIdx);
+              }
+              setDragIdx(null);
+              setOverIdx(null);
+            }}
+            onPointerCancel={() => {
+              setDragIdx(null);
+              setOverIdx(null);
+            }}
+          >
+            ⠿
+          </span>
+          <div className="nk-blockrow-name">{label}</div>
+          <div className="nk-builder-reorder">
+            <button
+              type="button"
+              disabled={i === 0}
+              onClick={() => onMove(i, i - 1)}
+              title="上へ"
+            >
+              ↑
+            </button>
+            <button
+              type="button"
+              disabled={i === items.length - 1}
+              onClick={() => onMove(i, i + 1)}
+              title="下へ"
+            >
+              ↓
+            </button>
+          </div>
+          <button
+            type="button"
+            className="nk-blockrow-remove"
+            title={removeTitle}
+            disabled={!canRemove}
+            onClick={() => onRemove(id)}
+          >
+            ✕
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Reorder helper: move items[from] to position `to`. */
+function moved<T>(items: T[], from: number, to: number): T[] {
+  const next = [...items];
+  const [x] = next.splice(from, 1);
+  next.splice(to, 0, x);
+  return next;
+}
+
+/** Block list editor for a `page` view: pick which views appear on the page
+ *  (from this app OR another app) and in what vertical order. */
+function PageBlocksEditor({
+  view,
+  localApp,
+  foreignDefs,
+  onChange,
+}: {
+  view: View;
+  /** The app being edited (live definition). */
+  localApp: AppDefinition;
+  /** appId → definition for every OTHER app, to list their views. */
+  foreignDefs: Record<string, AppDefinition>;
+  onChange: (blocks: string[]) => void;
+}) {
+  const blocks = view.blocks ?? [];
+  // Resolve a ref to a human label (view name, plus app for foreign refs).
+  const labelOf = (ref: string) => {
+    const { appId, viewId, foreign } = parseBlock(ref, localApp.id);
+    const app = foreign ? foreignDefs[appId] : localApp;
+    const v = app?.views.find((x) => x.id === viewId);
+    if (!v) return foreign ? `${appId} / ${viewId}` : viewId; // dangling
+    return foreign ? `${v.name} — ${app!.icon ?? "🗂"} ${app!.name}` : v.name;
+  };
+  // Candidate views to add, grouped: this app first, then each other app.
+  const localOpts = localApp.views
+    .filter((v) => v.type !== "page" && !blocks.includes(v.id))
+    .map((v) => ({ value: v.id, label: v.name }));
+  const foreignOpts = Object.values(foreignDefs).flatMap((app) =>
+    app.views
+      .filter((v) => v.type !== "page")
+      .map((v) => ({ value: makeBlock(app.id, v.id, localApp.id), label: v }))
+      .filter((o) => !blocks.includes(o.value))
+      .map((o) => ({
+        value: o.value,
+        label: `${app.icon ?? "🗂"} ${app.name} / ${o.label.name}`,
+      })),
+  );
+  const options = [...localOpts, ...foreignOpts];
+  return (
+    <>
+      <Row label="ビュー構成">
+        <div className="nk-blockstack">
+          <ReorderList
+            items={blocks.map((ref) => ({ id: ref, label: labelOf(ref) }))}
+            onMove={(from, to) => onChange(moved(blocks, from, to))}
+            onRemove={(id) => onChange(blocks.filter((b) => b !== id))}
+            removeTitle="ページから外す"
+          />
+          {!blocks.length && (
+            <p className="nk-builder-hint">
+              下のセレクトからビューを追加すると、上から順に縦に並びます。
+              他のアプリのビューも配置できます。
+            </p>
+          )}
+        </div>
+      </Row>
+      {options.length > 0 && (
+        <PickRow
+          label="ビューを追加"
+          value=""
+          options={options}
+          onChange={(ref) => onChange([...blocks, ref])}
+        />
+      )}
+    </>
+  );
+}
+
+/** Column editor for a table view: the view's columns as an ordered list
+ *  (the table renders them in this order), with the remaining fields tucked
+ *  behind a disclosure to keep the panel focused on what the view shows. */
+function ColumnsEditor({
+  view,
+  fields,
+  onChange,
+}: {
+  view: View;
+  fields: Field[];
+  onChange: (columns: string[]) => void;
+}) {
+  const [showHidden, setShowHidden] = useState(false);
+  const all = fields.map((f) => f.id);
+  // Empty columns = "all fields, definition order" (the stored shorthand).
+  const shown = view.columns?.length
+    ? view.columns.filter((id) => all.includes(id))
+    : all;
+  const hidden = fields.filter((f) => !shown.includes(f.id));
+  const labelOf = (id: string) =>
+    fields.find((f) => f.id === id)?.label ?? id;
+  // Keep the shorthand when the explicit list round-trips to the default.
+  const commit = (list: string[]) =>
+    onChange(
+      list.length === all.length && list.every((id, i) => id === all[i])
+        ? []
+        : list,
+    );
+  return (
+    <Row label="表示列">
+      <div className="nk-blockstack">
+        <ReorderList
+          items={shown.map((id) => ({ id, label: labelOf(id) }))}
+          onMove={(from, to) => commit(moved(shown, from, to))}
+          onRemove={(id) => commit(shown.filter((c) => c !== id))}
+          removeTitle="列を隠す"
+          canRemove={shown.length > 1}
+        />
+        {hidden.length > 0 && (
+          <>
+            <button
+              type="button"
+              className="nk-builder-toggle"
+              onClick={() => setShowHidden((s) => !s)}
+            >
+              {showHidden ? "▴" : "▾"} 非表示の列（{hidden.length}）
+            </button>
+            {showHidden &&
+              hidden.map((f) => (
+                <button
+                  type="button"
+                  key={f.id}
+                  className="nk-blockrow nk-blockrow-add"
+                  title="列を表示"
+                  onClick={() => commit([...shown, f.id])}
+                >
+                  <PlusIcon size={13} />
+                  <span className="nk-blockrow-name">{f.label}</span>
+                </button>
+              ))}
+          </>
+        )}
+      </div>
+    </Row>
+  );
+}
+
+/** Small chevron for the bare selects below (mirrors PickRow's). */
+function SelectChevron() {
+  return (
+    <svg
+      className="nk-select-chevron"
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <polyline points="6 9 12 15 18 9" />
+    </svg>
+  );
+}
+
+/** Sort editor: an ordered list of {field, dir} keys (first = primary). Reorder
+ *  the priority by dragging the grip, flip direction per key, add/remove keys.
+ *  Applies to any list-like view; the backend builds ORDER BY from `view.sort`. */
+function SortEditor({
+  view,
+  fields,
+  onChange,
+}: {
+  view: View;
+  fields: Field[];
+  onChange: (sort: SortSpec[]) => void;
+}) {
+  const sort = view.sort ?? [];
+  // image/file sort by an opaque ref — not meaningful, so keep them out.
+  const sortable = fields.filter((f) => f.type !== "image" && f.type !== "file");
+  const used = new Set(sort.map((s) => s.field));
+  const candidates = sortable.filter((f) => !used.has(f.id));
+  const setEntry = (i: number, patch: Partial<SortSpec>) =>
+    onChange(sort.map((s, j) => (j === i ? { ...s, ...patch } : s)));
+  return (
+    <>
+      <Row label="並べ替え">
+        <div className="nk-blockstack">
+          <ReorderList
+            items={sort.map((s, i) => ({
+              id: s.field,
+              label: (
+                <div className="nk-sortrow">
+                  <div className="nk-select nk-sortrow-field">
+                    <select
+                      value={s.field}
+                      onChange={(e) => setEntry(i, { field: e.target.value })}
+                    >
+                      {sortable
+                        .filter((f) => f.id === s.field || !used.has(f.id))
+                        .map((f) => (
+                          <option key={f.id} value={f.id}>
+                            {f.label}
+                          </option>
+                        ))}
+                    </select>
+                    <SelectChevron />
+                  </div>
+                  <button
+                    type="button"
+                    className="nk-sortrow-dir"
+                    title="昇順／降順を切り替え"
+                    onClick={() =>
+                      setEntry(i, {
+                        dir: (s.dir ?? "asc") === "asc" ? "desc" : "asc",
+                      })
+                    }
+                  >
+                    {(s.dir ?? "asc") === "asc" ? "昇順 ↑" : "降順 ↓"}
+                  </button>
+                </div>
+              ),
+            }))}
+            onMove={(from, to) => onChange(moved(sort, from, to))}
+            onRemove={(id) => onChange(sort.filter((s) => s.field !== id))}
+            removeTitle="この並べ替えを外す"
+          />
+          {!sort.length && (
+            <p className="nk-builder-hint">
+              未指定のときは新しい順です。フィールドを追加すると並べ替えます。
+            </p>
+          )}
+        </div>
+      </Row>
+      {candidates.length > 0 && (
+        <PickRow
+          label="並べ替えを追加"
+          value=""
+          options={candidates.map((f) => ({ value: f.id, label: f.label }))}
+          onChange={(field) => onChange([...sort, { field, dir: "asc" }])}
+        />
+      )}
+    </>
+  );
+}
+
 /** Strip references to a deleted field from every view. */
 function stripFieldFromViews(views: View[], fieldId: string): View[] {
   return views.map((v) => ({
@@ -136,12 +484,41 @@ export function AppBuilderPanel({
   const [openView, setOpenView] = useState<string | null>(null);
   const [confirmField, setConfirmField] = useState<string | null>(null);
   const [apps, setApps] = useState<AppSummary[]>([]);
+  // Full definitions of OTHER apps — only needed to offer their views to a
+  // page's block list, so loaded lazily when this app has a page view.
+  const [foreignDefs, setForeignDefs] = useState<Record<string, AppDefinition>>({});
   const toast = useToast();
 
   // Relation targets. Fetched here so the builder stays self-contained.
   useEffect(() => {
     void listApps().then(setApps);
   }, []);
+
+  const hasPage = def.views.some((v) => v.type === "page");
+  useEffect(() => {
+    if (!hasPage) return;
+    let alive = true;
+    (async () => {
+      const list = await listApps();
+      const entries = await Promise.all(
+        list
+          .filter((a) => a.id !== app.id)
+          .map((a) =>
+            getApp(a.id)
+              .then((d) => [a.id, d] as const)
+              .catch(() => null),
+          ),
+      );
+      if (alive) {
+        setForeignDefs(
+          Object.fromEntries(entries.filter(Boolean) as [string, AppDefinition][]),
+        );
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [hasPage, app.id]);
 
   // Immediate apply. Text edits debounce so we don't hit SQLite per keystroke;
   // structural edits (add/delete/type) go through right away. `latest` makes
@@ -249,6 +626,17 @@ export function AppBuilderPanel({
       debounce,
     );
 
+  // Reorder the view itself — this is the tab order, and views[0] is the app's
+  // default view. Mirrors moveField.
+  const moveView = (id: string, dir: -1 | 1) => {
+    const i = def.views.findIndex((v) => v.id === id);
+    const j = i + dir;
+    if (i < 0 || j < 0 || j >= def.views.length) return;
+    const views = [...def.views];
+    [views[i], views[j]] = [views[j], views[i]];
+    mutate({ ...def, views });
+  };
+
   const addView = () => {
     const id = nextId("view_", def.views.map((v) => v.id));
     mutate({
@@ -261,7 +649,17 @@ export function AppBuilderPanel({
   const removeView = (id: string) => {
     if (def.views.length <= 1) return;
     setOpenView(null);
-    mutate({ ...def, views: def.views.filter((v) => v.id !== id) });
+    mutate({
+      ...def,
+      // Also strip the view from any page that references it.
+      views: def.views
+        .filter((v) => v.id !== id)
+        .map((v) =>
+          v.blocks?.includes(id)
+            ? { ...v, blocks: v.blocks.filter((b) => b !== id) }
+            : v,
+        ),
+    });
   };
 
   // Field pickers per role, for view configuration.
@@ -502,7 +900,7 @@ export function AppBuilderPanel({
               <PlusIcon size={13} /> 追加
             </button>
           </div>
-          {def.views.map((v) => (
+          {def.views.map((v, vi) => (
             <div
               key={v.id}
               className={`nk-fieldrow${openView === v.id ? " is-open" : ""}`}
@@ -538,6 +936,14 @@ export function AppBuilderPanel({
                       patchView(v.id, { type: t as View["type"] })
                     }
                   />
+                  {v.type === "page" && (
+                    <PageBlocksEditor
+                      view={v}
+                      localApp={def}
+                      foreignDefs={foreignDefs}
+                      onChange={(blocks) => patchView(v.id, { blocks })}
+                    />
+                  )}
                   {(v.type === "board" ||
                     v.type === "summary") && (
                     <PickRow
@@ -631,37 +1037,43 @@ export function AppBuilderPanel({
                     </>
                   )}
                   {(v.type ?? "table") === "table" && def.fields.length > 0 && (
-                    <Row label="表示列">
-                      <div className="nk-builder-cols">
-                        {def.fields.map((f) => {
-                          // Empty columns = show everything.
-                          const shown =
-                            !v.columns?.length || v.columns.includes(f.id);
-                          return (
-                            <Checkbox
-                              key={f.id}
-                              checked={shown}
-                              label={f.label}
-                              onChange={(on) => {
-                                const all = def.fields.map((x) => x.id);
-                                const cur = v.columns?.length ? v.columns : all;
-                                const next = on
-                                  ? all.filter(
-                                      (id) => cur.includes(id) || id === f.id,
-                                    )
-                                  : cur.filter((id) => id !== f.id);
-                                patchView(v.id, {
-                                  columns: next.length === all.length ? [] : next,
-                                });
-                              }}
-                            />
-                          );
-                        })}
-                      </div>
-                    </Row>
+                    <ColumnsEditor
+                      view={v}
+                      fields={def.fields}
+                      onChange={(columns) => patchView(v.id, { columns })}
+                    />
                   )}
+                  {/* Record order matters for list-like views. */}
+                  {["table", "board", "gallery"].includes(v.type ?? "table") &&
+                    def.fields.length > 0 && (
+                      <SortEditor
+                        view={v}
+                        fields={def.fields}
+                        onChange={(sort) => patchView(v.id, { sort })}
+                      />
+                    )}
                   {def.views.length > 1 && (
                     <div className="nk-fieldrow-foot">
+                      {/* Reorder the view — sets the tab order; the first view
+                          is the app's default. */}
+                      <div className="nk-builder-reorder">
+                        <button
+                          type="button"
+                          disabled={vi === 0}
+                          onClick={() => moveView(v.id, -1)}
+                          title="前へ"
+                        >
+                          ↑
+                        </button>
+                        <button
+                          type="button"
+                          disabled={vi === def.views.length - 1}
+                          onClick={() => moveView(v.id, 1)}
+                          title="後ろへ"
+                        >
+                          ↓
+                        </button>
+                      </div>
                       <div style={{ flex: 1 }} />
                       <Button
                         size="sm"

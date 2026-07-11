@@ -48,7 +48,7 @@ The database file (macOS):
     {
       "id": "all",
       "name": "すべて",
-      // table | board | calendar | gallery | summary | chart | heatmap
+      // table | board | calendar | gallery | summary | chart | heatmap | page
       "type": "table",
       "columns": ["status"],    // table: field ids shown as columns
       "sort": [{ "field": "status", "dir": "asc" }],
@@ -57,7 +57,9 @@ The database file (macOS):
       "imageField": "cover",    // gallery: image-field id used as the card image
       "metric": { "field": "amount", "fn": "sum" },  // summary/chart/heatmap aggregate (fn: sum|avg|count|min|max)
       "chartType": "line",      // chart: line | area
-      "bucket": "month"         // chart x-axis bucket: day | week | month
+      "bucket": "month",        // chart x-axis bucket: day | week | month
+      "blocks": ["all", "kanban", "books:gallery"] // page: ordered view refs, stacked top-to-bottom
+      // each ref is a view id in THIS app, or "appId:viewId" for another app's view
     }
   ]
 }
@@ -80,6 +82,13 @@ The database file (macOS):
 - **heatmap** — a GitHub-contribution-style year grid coloring each day by the
   `metric` over `dateField` (`count` by default). For habit/streak tracking.
   Only same-day intensity; navigate years in the toolbar.
+- **page** — several other views stacked vertically on one page, in `blocks`
+  order. Each ref is either a view id in this app, or `"appId:viewId"` to embed
+  a view from **another app** (its data, edits and relations resolve against
+  that app). Each block loads records with its own view's sort. Dangling refs
+  and page-in-page references are ignored at render time (pages cannot nest).
+  Reorder blocks in the app builder (drag & drop), where other apps' views are
+  offered alongside this app's.
 
 ## Storage model — JSON + generated columns
 

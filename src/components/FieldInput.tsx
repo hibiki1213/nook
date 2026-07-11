@@ -8,8 +8,9 @@ import { useRelations } from "./relations";
 import { toTags } from "../lib/format";
 import type { Field } from "../types";
 
-/** Dropdown over the target app's records (value = record id). */
-function RelationSelect({
+/** Dropdown over the target app's records (value = record id).
+ *  Exported for inline cell editing (CellEditor). */
+export function RelationSelect({
   field,
   value,
   onChange,

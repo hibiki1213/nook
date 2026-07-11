@@ -160,7 +160,8 @@ fn default_metric_fn() -> String {
 pub struct View {
     pub id: String,
     pub name: String,
-    /// "table" | "board" | "calendar" | "gallery" | "summary" | "chart" | "heatmap"
+    /// "table" | "board" | "calendar" | "gallery" | "summary" | "chart"
+    /// | "heatmap" | "page"
     #[serde(rename = "type", default = "default_view_type")]
     pub view_type: String,
     /// Fields shown as columns (table view).
@@ -186,6 +187,9 @@ pub struct View {
     /// time bucket for a `chart` x-axis: "day" | "week" | "month".
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub bucket: Option<String>,
+    /// ordered ids of other views stacked top-to-bottom (`page` view).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub blocks: Option<Vec<String>>,
 }
 
 fn default_view_type() -> String {
@@ -245,16 +249,18 @@ mod tests {
             {"id":"c","name":"C","type":"calendar","dateField":"due"},
             {"id":"g","name":"G","type":"gallery","imageField":"cover"},
             {"id":"s","name":"S","type":"summary","groupBy":"cat","metric":{"field":"amount","fn":"sum"}},
-            {"id":"ch","name":"Ch","type":"chart","dateField":"due","chartType":"line","bucket":"month","metric":{"field":"amount","fn":"sum"}}
+            {"id":"ch","name":"Ch","type":"chart","dateField":"due","chartType":"line","bucket":"month","metric":{"field":"amount","fn":"sum"}},
+            {"id":"p","name":"P","type":"page","blocks":["b","c"]}
         ]}"#;
         let def: AppDefinition = serde_json::from_str(j).unwrap();
         let back = serde_json::to_string(&def).unwrap();
         for key in [
             "groupBy", "dateField", "imageField", "\"type\":\"summary\"", "\"fn\":\"sum\"",
-            "chartType", "\"bucket\":\"month\"",
+            "chartType", "\"bucket\":\"month\"", "\"blocks\":[\"b\",\"c\"]",
         ] {
             assert!(back.contains(key), "{key} was dropped: {back}");
         }
+        assert_eq!(def.views[5].blocks.as_deref(), Some(&["b".to_string(), "c".to_string()][..]));
         assert_eq!(def.views[0].group_by.as_deref(), Some("status"));
         assert_eq!(def.views[1].date_field.as_deref(), Some("due"));
         assert_eq!(def.views[2].image_field.as_deref(), Some("cover"));

@@ -76,7 +76,15 @@ export type Bucket = "day" | "week" | "month";
 export interface View {
   id: string;
   name: string;
-  type?: "table" | "board" | "calendar" | "gallery" | "summary" | "chart" | "heatmap";
+  type?:
+    | "table"
+    | "board"
+    | "calendar"
+    | "gallery"
+    | "summary"
+    | "chart"
+    | "heatmap"
+    | "page";
   columns?: string[];
   sort?: SortSpec[];
   /** select-field id to group by (board; also summary grouping). */
@@ -91,6 +99,8 @@ export interface View {
   chartType?: ChartType;
   /** time bucket for a chart x-axis (chart view). */
   bucket?: Bucket;
+  /** ordered ids of other views stacked on the page, top to bottom (page view). */
+  blocks?: string[];
 }
 
 export interface AppDefinition {

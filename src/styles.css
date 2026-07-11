@@ -945,8 +945,22 @@ body {
 .nk-table-wrap {
   border: 1px solid var(--border-light);
   border-radius: var(--radius-lg);
-  overflow: hidden;
+  /* Visible so the row 開く button can sit in the gutter left of the card;
+     the corner rounding is applied to the corner cells below instead. */
+  overflow: visible;
   background: var(--bg-primary);
+}
+.nk-table thead th:first-child {
+  border-top-left-radius: calc(var(--radius-lg) - 1px);
+}
+.nk-table thead th:last-child {
+  border-top-right-radius: calc(var(--radius-lg) - 1px);
+}
+.nk-table tbody tr:last-child td:first-child {
+  border-bottom-left-radius: calc(var(--radius-lg) - 1px);
+}
+.nk-table tbody tr:last-child td:last-child {
+  border-bottom-right-radius: calc(var(--radius-lg) - 1px);
 }
 .nk-table {
   width: 100%;
@@ -983,6 +997,134 @@ body {
   display: inline-flex;
 }
 
+/* ── Inline cell editing ─────────────────────────────────────────────────── */
+/* The cell's display face: fills the cell so the whole area is clickable,
+   and anchors the hover 開く button. */
+.nk-cell-view {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 24px;
+  margin: calc(var(--space-2) * -1) calc(var(--space-4) * -1);
+  padding: var(--space-2) var(--space-4);
+}
+.nk-td-num .nk-cell-view {
+  justify-content: flex-end;
+}
+/* The row's open affordance floats in the gutter LEFT of the table card
+   (outside it), so it never covers cell content. Sized to fit the app body's
+   24px padding gutter: 20px button + 2px gap. */
+.nk-row-open {
+  position: absolute;
+  right: calc(100% + 2px);
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  border-radius: var(--radius-xs);
+  background: var(--bg-primary);
+  color: var(--text-tertiary);
+  cursor: pointer;
+  opacity: 0;
+  transition:
+    opacity var(--duration-fast) var(--easing-default),
+    color var(--duration-fast) var(--easing-default);
+  box-shadow: var(--shadow-popover);
+}
+.nk-table tbody tr:hover .nk-row-open,
+.nk-row-open:hover,
+.nk-row-open:focus-visible {
+  opacity: 1;
+}
+.nk-row-open:hover {
+  color: var(--color-accent-11);
+}
+
+/* ── The floating cell editor (Nani popover: 1px ring + soft blur shadow,
+      quick scale-in from the cell's corner). ─────────────────────────────── */
+.nk-table tbody td.is-editing {
+  position: relative;
+}
+.nk-cell-ghost {
+  visibility: hidden; /* holds the cell's size while the popover floats */
+}
+@keyframes nk-pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.nk-cell-pop {
+  position: absolute;
+  top: calc(var(--space-1) * -1);
+  left: var(--space-2);
+  z-index: 60; /* --z-popover */
+  min-width: max(calc(100% - var(--space-2)), 220px);
+  max-width: 340px;
+  background: var(--bg-primary);
+  border-radius: var(--radius-md);
+  box-shadow:
+    0 0 0 1.5px var(--color-accent-8),
+    var(--shadow-popover);
+  padding: var(--space-2) var(--space-3);
+  transform-origin: top left;
+  animation: nk-pop-in 0.15s var(--easing-out) both;
+}
+/* Right-anchored in numeric and last columns so the popover grows inward
+   instead of running past the table's (and viewport's) right edge. */
+.nk-td-num .nk-cell-pop,
+.nk-table td:last-child .nk-cell-pop {
+  left: auto;
+  right: var(--space-2);
+  transform-origin: top right;
+}
+.nk-cell-input {
+  width: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  padding: 0;
+}
+.nk-td-num .nk-cell-input {
+  text-align: right;
+}
+.nk-cell-textarea {
+  resize: vertical;
+  min-width: 260px;
+  line-height: 1.5;
+}
+.nk-cell-pop .nk-select {
+  width: 100%;
+}
+/* The pop's accent ring is the frame — strip the select's own box so the
+   editor isn't double-bordered. */
+.nk-cell-pop .nk-select select {
+  width: 100%;
+  font-size: var(--font-size-sm);
+  border: none;
+  background: transparent;
+  border-radius: 0;
+  padding: 0 var(--space-6) 0 0;
+}
+.nk-cell-group {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+.nk-cell-group > * {
+  width: 100%;
+}
+
 /* ── Board view ──────────────────────────────────────────────────────────── */
 .nk-board {
   display: flex;
@@ -1000,6 +1142,10 @@ body {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
+  /* Transparent by default so the drop highlight doesn't shift layout. */
+  border: 1px dashed transparent;
+  transition: border-color var(--duration-fast) var(--easing-default),
+    background var(--duration-fast) var(--easing-default);
 }
 .nk-board-col-head {
   display: flex;
@@ -1022,12 +1168,34 @@ body {
   border-radius: var(--radius-md);
   padding: var(--space-3);
   cursor: pointer;
+  /* Pointer-based drag: no text selection, and touch drags the card
+     instead of scrolling. */
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
   /* Nani card sheen: soft navy drop + 1px white inset on the top edge. */
   box-shadow: var(--shadow-card);
   transition: box-shadow var(--duration-fast) var(--easing-default);
 }
 .nk-card:hover {
   box-shadow: var(--shadow-card), var(--shadow-md);
+}
+.nk-card.is-dragging {
+  opacity: 0.4;
+}
+/* The floating copy that follows the pointer during a drag. */
+.nk-card-ghost {
+  position: fixed;
+  z-index: 1000;
+  pointer-events: none;
+  cursor: grabbing;
+  opacity: 0.92;
+  box-shadow: var(--shadow-card), var(--shadow-lg);
+  transform: rotate(2deg);
+}
+.nk-board-col.is-drop-target {
+  border-color: var(--color-accent-8);
+  background: var(--bg-tertiary);
 }
 .nk-card-title {
   font-size: var(--font-size-sm);
@@ -1048,6 +1216,162 @@ body {
   color: var(--text-light);
   font-size: var(--font-size-xs);
   padding: var(--space-3);
+}
+
+/* ── Page view (stacked blocks) ──────────────────────────────────────────── */
+.nk-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+.nk-page-block-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--text-secondary);
+  margin: 0 0 var(--space-3);
+}
+/* Which app a foreign block's data comes from. */
+.nk-page-block-app {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-regular);
+  color: var(--text-tertiary);
+}
+.nk-page-block-missing {
+  color: var(--text-tertiary);
+  font-size: var(--font-size-sm);
+  padding: var(--space-4);
+}
+/* Inside a stacked page, a board sizes to its content instead of the pane. */
+.nk-page-block .nk-board {
+  height: auto;
+}
+
+/* Builder: page block list */
+.nk-blocklist {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  width: 100%;
+}
+.nk-blockrow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-light);
+  background: var(--bg-primary);
+}
+.nk-blockrow.is-drag-over {
+  border-color: var(--color-accent-8);
+  background: var(--bg-tertiary);
+}
+.nk-blockrow.is-dragging {
+  opacity: 0.5;
+}
+.nk-blockrow-grip {
+  color: var(--text-light);
+  font-size: var(--font-size-xs);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  padding: var(--space-1);
+  margin: calc(var(--space-1) * -1);
+}
+.nk-blockrow-name {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--font-size-sm);
+  color: var(--text-primary);
+}
+/* Sort key row: a field select + a direction toggle. */
+.nk-sortrow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+}
+.nk-sortrow-field {
+  flex: 1;
+  min-width: 0;
+}
+.nk-sortrow-field select {
+  padding-top: var(--space-1);
+  padding-bottom: var(--space-1);
+}
+.nk-sortrow-dir {
+  flex: none;
+  border: 1px solid var(--border-strong);
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+  border-radius: var(--radius-sm);
+  padding: var(--space-1) var(--space-2);
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    border-color var(--duration-fast) var(--easing-default),
+    color var(--duration-fast) var(--easing-default);
+}
+.nk-sortrow-dir:hover {
+  border-color: var(--color-accent-8);
+  color: var(--text-primary);
+}
+.nk-blockrow-remove {
+  border: none;
+  background: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  padding: 2px var(--space-1);
+  border-radius: var(--radius-sm);
+}
+.nk-blockrow-remove:hover:not(:disabled) {
+  color: var(--color-danger, #d33);
+  background: var(--bg-tertiary);
+}
+.nk-blockrow-remove:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.nk-blockstack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  width: 100%;
+}
+/* Disclosure for the fields a view does NOT show. */
+.nk-builder-toggle {
+  align-self: flex-start;
+  border: none;
+  background: none;
+  color: var(--text-tertiary);
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+  padding: var(--space-1) 0;
+}
+.nk-builder-toggle:hover {
+  color: var(--text-primary);
+}
+/* A hidden field row: click to add it back to the view. */
+.nk-blockrow-add {
+  border-style: dashed;
+  background: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+.nk-blockrow-add:hover {
+  border-color: var(--color-accent-8);
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+}
+.nk-blockrow-add .nk-blockrow-name {
+  color: inherit;
 }
 
 /* ── Field value bits ────────────────────────────────────────────────────── */

@@ -114,3 +114,12 @@ export const CloseIcon = (p: IconProps) => (
     <path d="M18 6 6 18M6 6l12 12" />
   </svg>
 );
+
+/** Open-in-panel (arrow out of a corner) — the table row's 開く affordance. */
+export const OpenIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M15 3h6v6" />
+    <path d="M10 14 21 3" />
+    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+  </svg>
+);

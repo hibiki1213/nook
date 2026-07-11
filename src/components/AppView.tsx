@@ -15,23 +15,21 @@ import {
   deleteApp,
 } from "../api";
 import type { AppDefinition, RecordRow } from "../types";
+import { parseBlock } from "../lib/blocks";
 import { Modal } from "./primitives";
 import { Menu } from "./Menu";
 import { AppBuilderPanel } from "./AppBuilderPanel";
 import { PlusIcon, MoreIcon, TrashIcon, EditIcon } from "./icons";
 import { useToast } from "./Toast";
 import { RelationProvider } from "./relations";
-import { TableView } from "./TableView";
-import { BoardView } from "./BoardView";
-import { CalendarView } from "./CalendarView";
-import { GalleryView } from "./GalleryView";
-import { SummaryView } from "./SummaryView";
-import { ChartView } from "./ChartView";
-import { HeatmapView } from "./HeatmapView";
+import { ViewBody, type ViewHandlers } from "./ViewBody";
+import { PageView } from "./PageView";
 import { RecordModal } from "./RecordModal";
 
-// `undefined` = modal closed, `null` = creating, RecordRow = editing.
-type Editing = RecordRow | null | undefined;
+// What the record modal is editing. `undefined` = closed; otherwise the target
+// app (which may be a foreign app referenced by a page block) plus the record
+// (null = creating).
+type EditTarget = { app: AppDefinition; record: RecordRow | null };
 
 export function AppView({
   appId,
@@ -54,14 +52,23 @@ export function AppView({
   const [def, setDef] = useState<AppDefinition | null>(null);
   const [viewId, setViewId] = useState<string>("");
   const [records, setRecords] = useState<RecordRow[]>([]);
+  // Page views: per-block record sets keyed by the block ref string (each block
+  // loads with its own view's sort, from its own app).
+  const [blockRecords, setBlockRecords] = useState<Record<string, RecordRow[]>>({});
+  // Definitions of other apps referenced by the current page's blocks.
+  const [foreignDefs, setForeignDefs] = useState<Record<string, AppDefinition>>({});
   // First-load flag so the empty state doesn't flash before records arrive.
   const [recordsLoaded, setRecordsLoaded] = useState(false);
-  const [editing, setEditing] = useState<Editing>(undefined);
+  const [editing, setEditing] = useState<EditTarget | undefined>(undefined);
   const [building, setBuilding] = useState(autoOpenBuilder);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const editingRef = useRef<Editing>(undefined);
+  const editingRef = useRef<EditTarget | undefined>(undefined);
   editingRef.current = editing;
+  // defRef keeps the keydown/command-palette closures reading the live def
+  // without re-subscribing on every definition edit.
+  const defRef = useRef<AppDefinition | null>(null);
+  defRef.current = def;
   const toast = useToast();
 
   // Load the definition whenever the selected app changes.
@@ -81,10 +88,37 @@ export function AppView({
   }, [appId]);
 
   const reload = useCallback(async () => {
-    const rows = await listRecords(appId, viewId || undefined);
+    const v = def?.views.find((x) => x.id === viewId) ?? def?.views[0];
+    // Distinct block refs of the current page (if any), resolved to app+view.
+    const refs =
+      v?.type === "page"
+        ? [...new Set(v.blocks ?? [])].map((ref) => ({
+            ref,
+            ...parseBlock(ref, appId),
+          }))
+        : [];
+    // Foreign app definitions needed to render the blocks.
+    const foreignIds = [
+      ...new Set(refs.filter((r) => r.foreign).map((r) => r.appId)),
+    ];
+    const [rows, defs, ...blockRows] = await Promise.all([
+      listRecords(appId, viewId || undefined),
+      Promise.all(
+        foreignIds.map((id) =>
+          getApp(id)
+            .then((d) => [id, d] as const)
+            .catch(() => null),
+        ),
+      ),
+      ...refs.map((r) => listRecords(r.appId, r.viewId).catch(() => [])),
+    ]);
     setRecords(rows);
+    setForeignDefs(Object.fromEntries(defs.filter(Boolean) as [string, AppDefinition][]));
+    setBlockRecords(
+      Object.fromEntries(refs.map((r, i) => [r.ref, blockRows[i]])),
+    );
     setRecordsLoaded(true);
-  }, [appId, viewId]);
+  }, [appId, viewId, def]);
 
   useEffect(() => {
     if (def) reload();
@@ -99,13 +133,13 @@ export function AppView({
     return () => clearInterval(t);
   }, [reload]);
 
-  // ⌘N / Ctrl+N — new record (only when no modal is open).
+  // ⌘N / Ctrl+N — new record in this app (only when no modal is open).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "n") {
-        if (editingRef.current === undefined) {
+        if (editingRef.current === undefined && defRef.current) {
           e.preventDefault();
-          setEditing(null);
+          setEditing({ app: defRef.current, record: null });
         }
       }
     };
@@ -116,7 +150,9 @@ export function AppView({
   // Let the command palette open a new record in this app.
   useEffect(() => {
     if (!newRecordRef) return;
-    newRecordRef.current = () => setEditing(null);
+    newRecordRef.current = () => {
+      if (defRef.current) setEditing({ app: defRef.current, record: null });
+    };
     return () => {
       newRecordRef.current = null;
     };
@@ -141,31 +177,73 @@ export function AppView({
 
   const view = def.views.find((v) => v.id === viewId) ?? def.views[0];
 
-  const onSave = async (data: Record<string, unknown>, id?: number) => {
-    try {
-      if (id != null) await updateRecord(appId, id, data);
-      else await createRecord(appId, data);
-      await reload();
-      toast(id != null ? "保存しました" : "追加しました", { type: "success" });
-    } catch (e) {
-      toast(`保存に失敗しました: ${e instanceof Error ? e.message : e}`, {
-        type: "error",
-      });
-      throw e; // keep the modal open
-    }
+  // ── Record mutations, parameterized by the target app so page blocks that
+  //    show another app's data edit the right records. ──────────────────────
+
+  // Optimistic local patch, scoped to the slices belonging to `tAppId` (record
+  // ids are only unique within one app, so we must not patch across apps).
+  const patchSlices = (tAppId: string, id: number, data: Record<string, unknown>) => {
+    const patch = (rows: RecordRow[]) =>
+      rows.map((row) => (row.id === id ? { ...row, data } : row));
+    if (tAppId === appId) setRecords(patch);
+    setBlockRecords((m) =>
+      Object.fromEntries(
+        Object.entries(m).map(([ref, rows]) => [
+          ref,
+          parseBlock(ref, appId).appId === tAppId ? patch(rows) : rows,
+        ]),
+      ),
+    );
   };
-  // Delete with an Undo affordance (HIG: destructive actions should be reversible).
-  const onDelete = async (id: number) => {
-    const doomed = records.find((r) => r.id === id);
+
+  // Find a record (for the delete-undo affordance) within `tAppId`'s slices.
+  const findRecord = (tAppId: string, id: number): RecordRow | undefined => {
+    if (tAppId === appId) {
+      const r = records.find((x) => x.id === id);
+      if (r) return r;
+    }
+    for (const [ref, rows] of Object.entries(blockRecords)) {
+      if (parseBlock(ref, appId).appId === tAppId) {
+        const r = rows.find((x) => x.id === id);
+        if (r) return r;
+      }
+    }
+    return undefined;
+  };
+
+  const editIn =
+    (tAppId: string) =>
+    async (r: RecordRow, fieldId: string, value: unknown) => {
+      const data = { ...r.data, [fieldId]: value };
+      patchSlices(tAppId, r.id, data); // optimistic; avoids snap-back
+      try {
+        await updateRecord(tAppId, r.id, data);
+        await reload();
+      } catch (e) {
+        await reload(); // roll back to server state
+        toast(`保存に失敗しました: ${e instanceof Error ? e.message : e}`, {
+          type: "error",
+        });
+      }
+    };
+
+  const toggleIn =
+    (tAppId: string) =>
+    async (r: RecordRow, fieldId: string, checked: boolean) => {
+      await editIn(tAppId)(r, fieldId, checked);
+    };
+
+  const deleteIn = (tAppId: string) => async (id: number) => {
+    const doomed = findRecord(tAppId, id);
     try {
-      await deleteRecord(appId, id);
+      await deleteRecord(tAppId, id);
       await reload();
       toast("レコードを削除しました", {
         action: doomed
           ? {
               label: "取り消す",
               onClick: async () => {
-                await createRecord(appId, doomed.data);
+                await createRecord(tAppId, doomed.data);
                 await reload();
               },
             }
@@ -177,10 +255,33 @@ export function AppView({
       });
     }
   };
-  const onToggle = async (r: RecordRow, fieldId: string, checked: boolean) => {
-    await updateRecord(appId, r.id, { ...r.data, [fieldId]: checked });
-    await reload();
+
+  // Build the callback bundle a view needs, bound to the app it displays.
+  const handlersFor = (tApp: AppDefinition): ViewHandlers => ({
+    onOpen: (r) => setEditing({ app: tApp, record: r }),
+    onToggle: toggleIn(tApp.id),
+    onCreate: () => setEditing({ app: tApp, record: null }),
+    onDelete: deleteIn(tApp.id),
+    onMove: editIn(tApp.id),
+    onEdit: editIn(tApp.id),
+  });
+
+  // The record modal saves/deletes against whichever app it's editing.
+  const onSave = async (data: Record<string, unknown>, id?: number) => {
+    const tAppId = editing?.app.id ?? appId;
+    try {
+      if (id != null) await updateRecord(tAppId, id, data);
+      else await createRecord(tAppId, data);
+      await reload();
+      toast(id != null ? "保存しました" : "追加しました", { type: "success" });
+    } catch (e) {
+      toast(`保存に失敗しました: ${e instanceof Error ? e.message : e}`, {
+        type: "error",
+      });
+      throw e; // keep the modal open
+    }
   };
+
   const doDelete = async () => {
     setDeleting(true);
     try {
@@ -216,7 +317,7 @@ export function AppView({
           <Button
             variant="primary"
             leftIcon={<PlusIcon size={16} />}
-            onClick={() => setEditing(null)}
+            onClick={() => setEditing({ app: def, record: null })}
           >
             新規
           </Button>
@@ -246,45 +347,46 @@ export function AppView({
           <div className="nk-loading">
             <Spinner />
           </div>
-        ) : view?.type === "board" ? (
-          <BoardView app={def} view={view} records={records} onOpen={setEditing} />
-        ) : view?.type === "calendar" ? (
-          <CalendarView app={def} view={view} records={records} onOpen={setEditing} />
-        ) : view?.type === "gallery" ? (
-          <GalleryView
+        ) : view?.type === "page" ? (
+          <PageView
             app={def}
             view={view}
-            records={records}
-            onOpen={setEditing}
-            onCreate={() => setEditing(null)}
+            foreignDefs={foreignDefs}
+            recordsByRef={blockRecords}
+            handlersFor={handlersFor}
           />
-        ) : view?.type === "summary" ? (
-          <SummaryView app={def} view={view} records={records} />
-        ) : view?.type === "chart" ? (
-          <ChartView app={def} view={view} records={records} />
-        ) : view?.type === "heatmap" ? (
-          <HeatmapView app={def} view={view} records={records} />
         ) : (
-          <TableView
+          <ViewBody
             app={def}
             view={view!}
             records={records}
-            onOpen={setEditing}
-            onToggle={onToggle}
-            onCreate={() => setEditing(null)}
-            onDelete={onDelete}
+            handlers={handlersFor(def)}
           />
         )}
       </div>
 
       {editing !== undefined && (
-        <RecordModal
-          app={def}
-          record={editing}
-          onSave={onSave}
-          onDelete={onDelete}
-          onClose={() => setEditing(undefined)}
-        />
+        // A foreign record needs its own app's relation context; wrap only then
+        // (local records already sit under the outer provider).
+        editing.app.id === def.id ? (
+          <RecordModal
+            app={editing.app}
+            record={editing.record}
+            onSave={onSave}
+            onDelete={deleteIn(editing.app.id)}
+            onClose={() => setEditing(undefined)}
+          />
+        ) : (
+          <RelationProvider app={editing.app}>
+            <RecordModal
+              app={editing.app}
+              record={editing.record}
+              onSave={onSave}
+              onDelete={deleteIn(editing.app.id)}
+              onClose={() => setEditing(undefined)}
+            />
+          </RelationProvider>
+        )
       )}
 
       {building && (

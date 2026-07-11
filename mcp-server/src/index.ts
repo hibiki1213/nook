@@ -130,7 +130,7 @@ const viewSchema = z.object({
   id: z.string(),
   name: z.string(),
   type: z
-    .enum(["table", "board", "calendar", "gallery", "summary", "chart", "heatmap"])
+    .enum(["table", "board", "calendar", "gallery", "summary", "chart", "heatmap", "page"])
     .optional()
     .describe("defaults to table"),
   columns: z.array(z.string()).optional().describe("field ids to show (table)"),
@@ -155,6 +155,12 @@ const viewSchema = z.object({
     .enum(["day", "week", "month"])
     .optional()
     .describe("chart x-axis time bucket (default day)"),
+  blocks: z
+    .array(z.string())
+    .optional()
+    .describe(
+      "page views only: ordered view refs stacked top-to-bottom. Each ref is a view id in THIS app, or 'appId:viewId' to embed a view from ANOTHER app (pages cannot nest)",
+    ),
 });
 
 const ok = (data: unknown) => ({
@@ -214,7 +220,10 @@ server.tool(
     "View types: table, board (needs `groupBy`), calendar (needs `dateField`),",
     "  gallery (uses `imageField`), summary (aggregate via `metric`, optional `groupBy`),",
     "  chart (time-series line/area of `metric` over `dateField`; set `chartType`+`bucket`),",
-    "  heatmap (GitHub-style year grid of `metric` per day over `dateField` — great for habits).",
+    "  heatmap (GitHub-style year grid of `metric` per day over `dateField` — great for habits),",
+    "  page (one page stacking several other views: set `blocks` to the ordered view refs —",
+    "    a bare view id for this app, or 'appId:viewId' to embed another app's view,",
+    "    e.g. a table with a board below it; pages cannot contain pages).",
     "Mark fields used for sorting/filtering as `indexed: true`.",
     "`id` and every field `id` must match ^[a-z][a-z0-9_]*$.",
     "Example: create_app({ id:'books', name:'読書記録', icon:'📚',",
