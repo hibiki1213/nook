@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useTheme } from "@emobi/ui";
-import { dueCounts, listApps } from "./api";
+import { dueCounts, listApps, shareStatus } from "./api";
 import { ACCENTS, setAccent } from "./lib/accent";
 import { initFiles } from "./lib/files";
 import { initImages } from "./lib/images";
@@ -11,10 +11,12 @@ import { AppView } from "./components/AppView";
 import { CommandPalette, type Command } from "./components/CommandPalette";
 import { SettingsModal } from "./components/SettingsModal";
 import { NewAppModal } from "./components/NewAppModal";
+import { JoinShareModal } from "./components/ShareModal";
 import {
   EditIcon,
   GearIcon,
   PlusIcon,
+  ShareIcon,
   SidebarIcon,
   SunIcon,
   MoonIcon,
@@ -28,6 +30,9 @@ export default function App() {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [newAppOpen, setNewAppOpen] = useState(false);
+  const [joinOpen, setJoinOpen] = useState(false);
+  // appId → connected peer count (key present = the app is shared).
+  const [shared, setShared] = useState<Record<string, number>>({});
   // Set right after 新規アプリ so the freshly mounted AppView opens its builder.
   const [builderAppId, setBuilderAppId] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(
@@ -56,6 +61,13 @@ export default function App() {
     try {
       const d = await dueCounts();
       setDue(Object.fromEntries(d.map((x) => [x.appId, x.count])));
+    } catch {
+      /* ignore */
+    }
+    // Share dots ride it too (also how joined apps appear in the sidebar).
+    try {
+      const s = await shareStatus();
+      setShared(Object.fromEntries(s.map((x) => [x.appId, x.connectedPeers])));
     } catch {
       /* ignore */
     }
@@ -134,6 +146,12 @@ export default function App() {
       icon: <PlusIcon size={16} />,
       run: () => setNewAppOpen(true),
     });
+    cmds.push({
+      id: "join-share",
+      label: "共有アプリに参加(チケット)",
+      icon: <ShareIcon size={16} />,
+      run: () => setJoinOpen(true),
+    });
     for (const a of apps) {
       cmds.push({
         id: `app:${a.id}`,
@@ -194,6 +212,7 @@ export default function App() {
         selected={selected}
         onSelect={setSelected}
         due={due}
+        shared={shared}
         collapsed={!sidebarOpen}
         onToggle={toggleSidebar}
         onOpenSettings={() => setSettingsOpen(true)}
@@ -228,6 +247,15 @@ export default function App() {
             setBuilderAppId(appId);
             await refreshApps();
             setSelected(appId);
+          }}
+        />
+      )}
+      {joinOpen && (
+        <JoinShareModal
+          onClose={() => setJoinOpen(false)}
+          onJoined={async (appIds) => {
+            await refreshApps();
+            if (appIds[0]) setSelected(appIds[0]);
           }}
         />
       )}

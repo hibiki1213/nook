@@ -17,7 +17,9 @@ pub const ADDR: &str = "127.0.0.1:8765";
 /// The MCP server refuses to run against a mismatched app, so the two can never
 /// drift silently. (They ship together, but a stale extension can linger inside
 /// Claude Desktop after the app is updated.)
-pub const API_VERSION: u32 = 1;
+///
+/// v2: record ids are ULID strings (were integers).
+pub const API_VERSION: u32 = 2;
 
 /// Runs forever on a background thread. A bind failure is logged but does not
 /// crash the app (the UI still works; only Claude integration is unavailable).
@@ -93,8 +95,10 @@ fn parse(body: &str) -> Result<Value> {
     serde_json::from_str(body).context("invalid JSON body")
 }
 
-fn parse_id(s: &str) -> Result<i64> {
-    s.parse::<i64>().context("record id must be an integer")
+fn parse_id(s: &str) -> Result<&str> {
+    ulid::Ulid::from_string(s)
+        .map_err(|_| anyhow!("record id must be a ULID"))?;
+    Ok(s)
 }
 
 fn query_param(query: &str, key: &str) -> Option<String> {

@@ -68,13 +68,13 @@ pub fn create_record(app_id: String, data: Value) -> CmdResult<Value> {
 }
 
 #[tauri::command]
-pub fn update_record(app_id: String, id: i64, data: Value) -> CmdResult<Value> {
-    Ok(repo::update_record(&app_id, id, data)?)
+pub fn update_record(app_id: String, id: String, data: Value) -> CmdResult<Value> {
+    Ok(repo::update_record(&app_id, &id, data)?)
 }
 
 #[tauri::command]
-pub fn delete_record(app_id: String, id: i64) -> CmdResult<Value> {
-    Ok(repo::delete_record(&app_id, id)?)
+pub fn delete_record(app_id: String, id: String) -> CmdResult<Value> {
+    Ok(repo::delete_record(&app_id, &id)?)
 }
 
 /// Per-app counts of records due today (reminded date fields) for the sidebar.
@@ -117,4 +117,150 @@ pub fn get_files_dir() -> CmdResult<String> {
 #[tauri::command]
 pub fn install_mcp(app: tauri::AppHandle) -> CmdResult<crate::mcp::InstallResult> {
     Ok(crate::mcp::install(&app)?)
+}
+
+// ── P2P sharing (UI-only — deliberately NOT on the MCP/HTTP surface) ────────
+
+use crate::sync;
+
+/// Relation dependencies (recursive) + attachment warning for the share
+/// confirmation dialog.
+#[tauri::command]
+pub fn share_preview(app_id: String) -> CmdResult<Value> {
+    let conn = crate::db::open()?;
+    let mut related: Vec<Value> = Vec::new();
+    let mut seen = std::collections::HashSet::new();
+    seen.insert(app_id.clone());
+    let mut queue = vec![app_id.clone()];
+    let mut has_attachments = false;
+
+    while let Some(id) = queue.pop() {
+        let Ok(raw) = conn.query_row(
+            "SELECT definition FROM apps WHERE id = ?1",
+            [&id],
+            |r| r.get::<_, String>(0),
+        ) else {
+            continue;
+        };
+        let Ok(def) = serde_json::from_str::<crate::models::AppDefinition>(&raw) else {
+            continue;
+        };
+        if id == app_id {
+            has_attachments = def.fields.iter().any(|f| {
+                matches!(
+                    f.field_type,
+                    crate::models::FieldType::File | crate::models::FieldType::Image
+                )
+            });
+        }
+        for f in &def.fields {
+            if let (crate::models::FieldType::Relation, Some(target)) = (&f.field_type, &f.app) {
+                if seen.insert(target.clone()) {
+                    // Offer only apps that exist and aren't already shared.
+                    if let Ok((name, icon)) = conn.query_row(
+                        "SELECT name, icon FROM apps WHERE id = ?1",
+                        [target],
+                        |r| Ok((r.get::<_, String>(0)?, r.get::<_, Option<String>>(1)?)),
+                    ) {
+                        if !sync::store::is_shared(&conn, target)? {
+                            related.push(
+                                serde_json::json!({ "id": target, "name": name, "icon": icon }),
+                            );
+                        }
+                        queue.push(target.clone());
+                    }
+                }
+            }
+        }
+    }
+    Ok(serde_json::json!({ "relatedApps": related, "hasAttachments": has_attachments }))
+}
+
+#[tauri::command]
+pub fn share_app(app_ids: Vec<String>) -> CmdResult<String> {
+    Ok(sync::net::request(|reply| sync::net::Cmd::Share { app_ids, reply })?)
+}
+
+#[tauri::command]
+pub fn create_invite(app_id: String) -> CmdResult<String> {
+    Ok(sync::net::request(|reply| sync::net::Cmd::Invite { app_id, reply })?)
+}
+
+#[tauri::command]
+pub fn join_share(ticket: String) -> CmdResult<Vec<String>> {
+    Ok(sync::net::request(|reply| sync::net::Cmd::Join { ticket, reply })?)
+}
+
+#[tauri::command]
+pub fn leave_share(app_id: String) -> CmdResult<()> {
+    Ok(sync::net::request(|reply| sync::net::Cmd::Leave { app_id, reply })?)
+}
+
+#[tauri::command]
+pub fn remove_member(app_id: String, device_id: String) -> CmdResult<()> {
+    Ok(sync::net::request(|reply| sync::net::Cmd::RemoveMember {
+        app_id,
+        device_id,
+        reply,
+    })?)
+}
+
+/// Status of every shared app: members (with last-sync times), connectivity,
+/// and how many local changes haven't reached everyone yet.
+#[tauri::command]
+pub fn share_status() -> CmdResult<Vec<Value>> {
+    let conn = crate::db::open()?;
+    let me = sync::store::device_id(&conn)?;
+    let mut out = Vec::new();
+    for app_id in sync::store::shared_apps(&conn)? {
+        let (_, epoch) = sync::store::share_secret(&conn, &app_id)?;
+        let members: Vec<Value> = sync::store::members(&conn, &app_id)?
+            .into_iter()
+            .filter(|m| !m.removed)
+            .map(|m| {
+                use rusqlite::OptionalExtension;
+                let last_sync: Option<String> = conn
+                    .query_row(
+                        "SELECT last_sync_at FROM sync_cursors WHERE app_id=?1 AND peer_device=?2",
+                        rusqlite::params![app_id, m.device_id],
+                        |r| r.get(0),
+                    )
+                    .optional()
+                    .ok()
+                    .flatten()
+                    .flatten();
+                serde_json::json!({
+                    "deviceId": m.device_id,
+                    "name": m.name,
+                    "isSelf": m.device_id == me,
+                    "lastSyncAt": last_sync,
+                    "connected": false, // per-member connectivity is not tracked; the app-level count is
+                })
+            })
+            .collect();
+        out.push(serde_json::json!({
+            "appId": app_id,
+            "epoch": epoch,
+            "connectedPeers": sync::net::connected_peers(&app_id),
+            "pendingOut": sync::store::pending_out(&conn, &app_id, &me)?,
+            "members": members,
+        }));
+    }
+    Ok(out)
+}
+
+#[tauri::command]
+pub fn get_device_name() -> CmdResult<Option<String>> {
+    let conn = crate::db::open()?;
+    Ok(sync::net::device_name(&conn)?)
+}
+
+#[tauri::command]
+pub fn set_device_name(name: String) -> CmdResult<()> {
+    let conn = crate::db::open()?;
+    conn.execute(
+        "INSERT OR REPLACE INTO settings (key, value) VALUES ('device_name', ?1)",
+        [&name],
+    )?;
+    Ok(())
 }

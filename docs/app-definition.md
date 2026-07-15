@@ -96,7 +96,7 @@ Each app gets a physical table named `d_<appId>`:
 
 ```sql
 CREATE TABLE "d_tasks" (
-  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  id          TEXT PRIMARY KEY NOT NULL,        -- a ULID (26 chars, time-ordered)
   data        TEXT NOT NULL DEFAULT '{}',       -- the record, as a JSON object
   created_at  TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at  TEXT NOT NULL DEFAULT (datetime('now')),
@@ -106,14 +106,19 @@ CREATE TABLE "d_tasks" (
 CREATE INDEX "ix_tasks_status" ON "d_tasks" ("f_status");  -- when indexed: true
 ```
 
+Record ids are **ULIDs** (globally unique, lexicographically time-ordered), so
+ids never collide across databases — the prerequisite for any future sync/merge.
+Databases created before v0.6.0 (INTEGER AUTOINCREMENT ids) are migrated in
+place on first launch; a backup is written next to the DB as `nook.db.backup-v1`.
+
 - **Canonical data lives in `data` (JSON).** Generated columns are derived views of
   it, used only to make sorting/filtering fast. Records are always written as a
   whole JSON object via `json(?)`.
 - **Adding a field never migrates data.** `ALTER TABLE … ADD COLUMN … GENERATED …`
   and existing rows immediately get the computed value (NULL if the key is absent).
 - **Column affinity by type:** `number | money | rating → REAL`,
-  `checkbox | relation → INTEGER`, everything else (`text`, `textarea`, `select`,
-  `date`, `url`, `tags`, `image`, `file`) `→ TEXT`.
+  `checkbox → INTEGER`, everything else (`text`, `textarea`, `select`,
+  `date`, `url`, `tags`, `image`, `file`, `relation`) `→ TEXT`.
 - **Value shapes.** Most fields store a scalar. `money` and `rating` store a
   **number** (rating is `1..=max`). `tags` stores a **JSON array of strings**, so
   its generated column mirrors the array's JSON text — good for display, not for
@@ -129,7 +134,7 @@ CREATE INDEX "ix_tasks_status" ON "d_tasks" ("f_status");  -- when indexed: true
   `2023年度_期末.pdf` from `2024年度_期末.pdf`. **Claude cannot write a `file`
   value** — the MCP server has no filesystem access, so the user attaches files in
   the UI; Claude still reads the names back from `list_records`. `relation` stores
-  the **target record's integer id** in the app named by the field's `app`; the renderer shows the
+  the **target record's id (a ULID string)** in the app named by the field's `app`; the renderer shows the
   target's title (its first text field). There is no referential integrity:
   deleting the target record/app leaves a dangling id, shown as `#<id>`.
 

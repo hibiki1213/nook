@@ -231,6 +231,34 @@ mcp-server/          Node MCP server Claude Desktop connects to
 docs/app-definition.md   the shared declarative spec
 ```
 
+## Sharing an app (P2P sync)
+
+Any app can be shared with other Nook users — **no cloud, no account, no
+running costs**. Each member holds a full local copy (SQLite) and edits work
+offline; changes merge automatically (field-level last-writer-wins CRDT)
+and travel peer-to-peer over [iroh](https://iroh.computer) (QUIC, NAT
+hole-punching, free public relays as fallback).
+
+- **Share**: app menu → 「共有…」 → 共有を開始 → send the `nook1…` ticket to a
+  teammate (LINE/Slack/whatever). Relation-dependent apps are offered for
+  co-sharing at that point.
+- **Join**: ⌘K → 「共有アプリに参加(チケット)」 → paste. The inviter must be
+  online for the initial join.
+- **Remove a member**: rotates the share key (new epoch); the removed device
+  stops receiving updates, but **its existing local replica cannot be
+  revoked** — invite only people you trust with the data as it stands.
+- **Deleting is not forgetting**: deletions propagate as tombstones; other
+  replicas may retain history until they merge.
+- **Attachments don't sync yet** (v0.7): file/image bytes stay on the device
+  that attached them; peers see the file name only. Planned for v0.8
+  (iroh-blobs).
+- **Async teams**: sync happens while two members are online together
+  (changes also relay through whoever is online — 3+ member groups converge
+  faster). For a team that never overlaps, run Nook on any always-on Mac and
+  join it to the share; it becomes a relay member with zero extra setup.
+- Conflicts resolve silently per field (latest edit wins). Concurrent edits
+  to *different* fields of the same record both survive.
+
 ## Notes / current limits (MVP)
 
 - Field types: text, textarea, number, checkbox, select, date, url, money

@@ -60,6 +60,7 @@ pub fn init(conn: &Connection) -> Result<()> {
         );
         "#,
     )?;
+    crate::sync::store::init(conn)?;
     Ok(())
 }
 
@@ -85,8 +86,10 @@ pub fn ensure_table(conn: &Connection, def: &AppDefinition) -> Result<()> {
     }
     let table = def.table_name();
 
+    // NOT NULL is load-bearing: unlike INTEGER PRIMARY KEY, a TEXT PRIMARY KEY
+    // still admits NULLs in SQLite unless said otherwise.
     let mut columns = vec![
-        "id INTEGER PRIMARY KEY AUTOINCREMENT".to_string(),
+        "id TEXT PRIMARY KEY NOT NULL".to_string(),
         "data TEXT NOT NULL DEFAULT '{}'".to_string(),
         "created_at TEXT NOT NULL DEFAULT (datetime('now'))".to_string(),
         "updated_at TEXT NOT NULL DEFAULT (datetime('now'))".to_string(),
@@ -214,7 +217,7 @@ mod tests {
         ensure_table(&conn, &def).unwrap();
 
         conn.execute(
-            "INSERT INTO \"d_test\" (data) VALUES (json(?1))",
+            "INSERT INTO \"d_test\" (id, data) VALUES ('01ARZ3NDEKTSV4RRFFQ69G5FAV', json(?1))",
             [r#"{"title":"hi","rating":"A","stars":4,"price":1200,"link":"https://x","labels":["x","y"],"done":true}"#],
         )
         .unwrap();
@@ -260,7 +263,7 @@ mod tests {
         let old = test_def();
         ensure_table(&conn, &old).unwrap();
         conn.execute(
-            "INSERT INTO \"d_test\" (data) VALUES (json(?1))",
+            "INSERT INTO \"d_test\" (id, data) VALUES ('01ARZ3NDEKTSV4RRFFQ69G5FAW', json(?1))",
             [r#"{"title":"hi","rating":"A","stars":4}"#],
         )
         .unwrap();

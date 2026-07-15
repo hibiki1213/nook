@@ -14,8 +14,8 @@ export function RecordModal({
 }: {
   app: AppDefinition;
   record: RecordRow | null;
-  onSave: (data: Record<string, unknown>, id?: number) => Promise<void>;
-  onDelete: (id: number) => Promise<void>;
+  onSave: (data: Record<string, unknown>, id?: string) => Promise<void>;
+  onDelete: (id: string) => Promise<void>;
   onClose: () => void;
 }) {
   const [data, setData] = useState<Record<string, unknown>>(() => {

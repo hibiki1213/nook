@@ -7,6 +7,8 @@ import type {
   DueApp,
   FileRef,
   RecordRow,
+  SharePreview,
+  ShareStatus,
 } from "./types";
 
 export const listApps = () => invoke<AppSummary[]>("list_apps");
@@ -34,11 +36,11 @@ export const createRecord = (appId: string, data: Record<string, unknown>) =>
 
 export const updateRecord = (
   appId: string,
-  id: number,
+  id: string,
   data: Record<string, unknown>,
 ) => invoke<RecordRow>("update_record", { appId, id, data });
 
-export const deleteRecord = (appId: string, id: number) =>
+export const deleteRecord = (appId: string, id: string) =>
   invoke<void>("delete_record", { appId, id });
 
 export interface InstallMcpResult {
@@ -64,3 +66,36 @@ export const importFile = (srcPath: string) =>
 
 /** Per-app counts of records due today (for sidebar badges). */
 export const dueCounts = () => invoke<DueApp[]>("due_counts");
+
+// ── P2P sharing ──────────────────────────────────────────────────────────────
+
+/** Relation dependencies + attachment warning, shown before sharing starts. */
+export const sharePreview = (appId: string) =>
+  invoke<SharePreview>("share_preview", { appId });
+
+/** Start sharing the given apps together. Returns the invite ticket. */
+export const shareApp = (appIds: string[]) =>
+  invoke<string>("share_app", { appIds });
+
+/** Re-issue an invite ticket for an already-shared app (current epoch). */
+export const createInvite = (appId: string) =>
+  invoke<string>("create_invite", { appId });
+
+/** Join shares from a pasted ticket. Returns the joined app ids. */
+export const joinShare = (ticket: string) =>
+  invoke<string[]>("join_share", { ticket });
+
+/** Leave a share (local data stays; it just stops syncing). */
+export const leaveShare = (appId: string) =>
+  invoke<void>("leave_share", { appId });
+
+/** Remove a member: rotates the share secret (new epoch). */
+export const removeMember = (appId: string, deviceId: string) =>
+  invoke<void>("remove_member", { appId, deviceId });
+
+/** Sync status of every shared app (members, connectivity, pending count). */
+export const shareStatus = () => invoke<ShareStatus[]>("share_status");
+
+export const getDeviceName = () => invoke<string | null>("get_device_name");
+export const setDeviceName = (name: string) =>
+  invoke<void>("set_device_name", { name });

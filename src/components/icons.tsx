@@ -123,3 +123,13 @@ export const OpenIcon = (p: IconProps) => (
     <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
   </svg>
 );
+
+/** Share (three linked nodes) — the app-sharing affordance. */
+export const ShareIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <circle cx="18" cy="5" r="3" />
+    <circle cx="6" cy="12" r="3" />
+    <circle cx="18" cy="19" r="3" />
+    <path d="m8.6 13.5 6.8 3.9M15.4 6.5 8.6 10.5" />
+  </svg>
+);

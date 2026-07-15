@@ -13,7 +13,7 @@ const API = process.env.NOOK_API || "http://127.0.0.1:8765";
 /** This extension's version — in lockstep with the app, which ships it inside itself. */
 const EXT_VERSION = "0.5.2";
 /** Contract version. Must match `API_VERSION` in `src-tauri/src/http.rs`. */
-const EXT_API_VERSION = 1;
+const EXT_API_VERSION = 2;
 
 /** Negotiated once per process, so a stale extension fails loudly, not silently. */
 let compatChecked = false;
@@ -110,7 +110,7 @@ const fieldSchema = z.object({
     .string()
     .optional()
     .describe(
-      "REQUIRED for `relation`: target app id. The record value is the target record's integer id (find ids with list_records).",
+      "REQUIRED for `relation`: target app id. The record value is the target record's id — a ULID string (find ids with list_records).",
     ),
   remind: z
     .boolean()
@@ -214,7 +214,7 @@ server.tool(
     "    filesystem; they drop files into the app themselves. Set `multiple: true` for",
     "    several per record, e.g. several years of past exam papers per course),",
     "  relation (a link to a record in another app: set `app` to the target app id;",
-    "    record values are the target record's integer id — look ids up with list_records).",
+    "    record values are the target record's id, a ULID string — look ids up with list_records).",
     "Reminders: a date field with `remind: true` notifies the user (OS notification +",
     "  sidebar badge) on the day the record's date arrives — use it for 期限/更新日/次回日.",
     "View types: table, board (needs `groupBy`), calendar (needs `dateField`),",
@@ -294,10 +294,10 @@ server.tool(
 server.tool(
   "update_record",
   "Update a record by id. `values` are merged over the existing record (only provided keys change).",
-  { appId: z.string(), id: z.number().int(), values: z.record(z.any()) },
+  { appId: z.string(), id: z.string().describe("record id (ULID string)"), values: z.record(z.any()) },
   async ({ appId, id, values }) => {
     try {
-      return ok(await api("PATCH", `/apps/${enc(appId)}/records/${id}`, values));
+      return ok(await api("PATCH", `/apps/${enc(appId)}/records/${enc(id)}`, values));
     } catch (e) {
       return fail(e);
     }
@@ -307,10 +307,10 @@ server.tool(
 server.tool(
   "delete_record",
   "Delete a record by id.",
-  { appId: z.string(), id: z.number().int() },
+  { appId: z.string(), id: z.string().describe("record id (ULID string)") },
   async ({ appId, id }) => {
     try {
-      return ok(await api("DELETE", `/apps/${enc(appId)}/records/${id}`));
+      return ok(await api("DELETE", `/apps/${enc(appId)}/records/${enc(id)}`));
     } catch (e) {
       return fail(e);
     }

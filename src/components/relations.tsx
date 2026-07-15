@@ -1,7 +1,7 @@
 // Relation resolution: an app's relation fields point at other apps' records by
-// integer id. The provider (mounted once per open app in AppView) fetches every
-// target app's definition + records so cells and pickers resolve synchronously.
-// Local data, so eagerly loading whole target apps is cheap.
+// id (a ULID string). The provider (mounted once per open app in AppView)
+// fetches every target app's definition + records so cells and pickers resolve
+// synchronously. Local data, so eagerly loading whole target apps is cheap.
 import {
   createContext,
   useContext,
@@ -19,7 +19,7 @@ interface TargetData {
 }
 
 export interface RelationOption {
-  id: number;
+  id: string;
   title: string;
 }
 
@@ -98,11 +98,13 @@ export function RelationProvider({
   const api = useMemo<RelationApi>(
     () => ({
       titleOf: (appId, id) => {
-        if (!appId) return null;
+        if (!appId || id == null) return null;
         const t = targets[appId];
-        const n = Number(id);
-        if (!t || !Number.isFinite(n)) return null;
-        const r = t.records.find((r) => r.id === n);
+        if (!t) return null;
+        // Stored values are ULID strings; String() also tolerates any legacy
+        // pre-migration integer that survived in the JSON.
+        const key = String(id);
+        const r = t.records.find((r) => r.id === key);
         return r ? recordTitle(t.def, r) : null;
       },
       optionsOf: (appId) => {

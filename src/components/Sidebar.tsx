@@ -9,6 +9,7 @@ export function Sidebar({
   selected,
   onSelect,
   due = {},
+  shared = {},
   collapsed = false,
   onToggle,
   onOpenSettings,
@@ -19,6 +20,8 @@ export function Sidebar({
   onSelect: (id: string) => void;
   /** appId → count of records due today (reminded date fields). */
   due?: Record<string, number>;
+  /** appId → connected peer count; presence of the key = the app is shared. */
+  shared?: Record<string, number>;
   collapsed?: boolean;
   onToggle?: () => void;
   onOpenSettings?: () => void;
@@ -51,6 +54,16 @@ export function Sidebar({
           >
             <span className="nk-app-icon">{a.icon ?? "🗂"}</span>
             <span className="nk-app-name">{a.name}</span>
+            {a.id in shared && (
+              <span
+                className={`nk-app-shared${(shared[a.id] ?? 0) > 0 ? " is-on" : ""}`}
+                title={
+                  (shared[a.id] ?? 0) > 0
+                    ? `共有中 — ${shared[a.id]} 台と接続`
+                    : "共有中(接続なし)"
+                }
+              />
+            )}
             {(due[a.id] ?? 0) > 0 && (
               <span className="nk-app-due" title="今日が期限のレコード">
                 {due[a.id]}

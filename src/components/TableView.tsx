@@ -28,7 +28,7 @@ export function TableView({
   onOpen: (r: RecordRow) => void;
   onToggle: (r: RecordRow, fieldId: string, checked: boolean) => void;
   onCreate?: () => void;
-  onDelete?: (id: number) => void;
+  onDelete?: (id: string) => void;
   onEdit?: (r: RecordRow, fieldId: string, value: unknown) => void;
 }) {
   const ids =
@@ -45,7 +45,7 @@ export function TableView({
   // the table is focused; clamp when records change under us.
   const [sel, setSel] = useState(-1);
   // The one cell being edited inline, if any.
-  const [editing, setEditing] = useState<{ recId: number; fieldId: string } | null>(
+  const [editing, setEditing] = useState<{ recId: string; fieldId: string } | null>(
     null,
   );
   const wrapRef = useRef<HTMLDivElement>(null);

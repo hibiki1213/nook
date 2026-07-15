@@ -119,8 +119,36 @@ export interface AppSummary {
 }
 
 export interface RecordRow {
-  id: number;
+  /** ULID — globally unique, time-ordered. */
+  id: string;
   data: Record<string, unknown>;
   created_at: string;
   updated_at: string;
+}
+
+// ── P2P sharing ──────────────────────────────────────────────────────────────
+
+/** What sharing an app would drag along (shown before the user confirms). */
+export interface SharePreview {
+  /** Apps referenced by relation fields (recursively) — offered, not forced. */
+  relatedApps: AppSummary[];
+  /** The app has file/image fields; their bytes do NOT sync in this version. */
+  hasAttachments: boolean;
+}
+
+export interface ShareMemberInfo {
+  deviceId: string;
+  name?: string | null;
+  isSelf: boolean;
+  lastSyncAt?: string | null;
+  connected: boolean;
+}
+
+export interface ShareStatus {
+  appId: string;
+  epoch: number;
+  connectedPeers: number;
+  /** Changes not yet confirmed held by every member. */
+  pendingOut: number;
+  members: ShareMemberInfo[];
 }

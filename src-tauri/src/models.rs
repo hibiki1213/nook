@@ -38,7 +38,7 @@ pub enum FieldType {
     /// therefore holds JSON text (fine for display; not for range sorting).
     File,
     /// A reference to a record in another app (see `Field::app`); stored as the
-    /// target record's integer id.
+    /// target record's id (a ULID string).
     Relation,
 }
 
@@ -48,9 +48,9 @@ impl FieldType {
         match self {
             // numeric-valued fields sort/compare correctly with REAL affinity
             FieldType::Number | FieldType::Money | FieldType::Rating => "REAL",
-            FieldType::Checkbox | FieldType::Relation => "INTEGER",
+            FieldType::Checkbox => "INTEGER",
             // text / textarea / select / date / url / image are stored as text;
-            // tags and file store JSON text (see the FieldType docs above)
+            // tags and file store JSON text; relation stores a ULID string
             _ => "TEXT",
         }
     }
@@ -303,7 +303,7 @@ mod tests {
         )
         .unwrap();
         assert!(ok.validate().is_ok());
-        assert_eq!(ok.field_type.affinity(), "INTEGER");
+        assert_eq!(ok.field_type.affinity(), "TEXT");
 
         let missing: Field =
             serde_json::from_str(r#"{"id":"author","label":"A","type":"relation"}"#).unwrap();

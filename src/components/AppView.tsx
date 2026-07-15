@@ -19,7 +19,8 @@ import { parseBlock } from "../lib/blocks";
 import { Modal } from "./primitives";
 import { Menu } from "./Menu";
 import { AppBuilderPanel } from "./AppBuilderPanel";
-import { PlusIcon, MoreIcon, TrashIcon, EditIcon } from "./icons";
+import { ShareModal } from "./ShareModal";
+import { PlusIcon, MoreIcon, TrashIcon, EditIcon, ShareIcon } from "./icons";
 import { useToast } from "./Toast";
 import { RelationProvider } from "./relations";
 import { ViewBody, type ViewHandlers } from "./ViewBody";
@@ -61,6 +62,7 @@ export function AppView({
   const [recordsLoaded, setRecordsLoaded] = useState(false);
   const [editing, setEditing] = useState<EditTarget | undefined>(undefined);
   const [building, setBuilding] = useState(autoOpenBuilder);
+  const [sharing, setSharing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const editingRef = useRef<EditTarget | undefined>(undefined);
@@ -133,6 +135,29 @@ export function AppView({
     return () => clearInterval(t);
   }, [reload]);
 
+  // Instant refresh when the sync layer merges remote changes (the poll above
+  // stays as the safety net). Same editing guard as the poll.
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    let alive = true;
+    (async () => {
+      try {
+        const { listen } = await import("@tauri-apps/api/event");
+        const un = await listen("nook://sync-applied", () => {
+          if (editingRef.current === undefined) void reload();
+        });
+        if (alive) unlisten = un;
+        else un();
+      } catch {
+        // plain-browser dev (vite without tauri) — poll covers it
+      }
+    })();
+    return () => {
+      alive = false;
+      unlisten?.();
+    };
+  }, [reload]);
+
   // ⌘N / Ctrl+N — new record in this app (only when no modal is open).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -182,7 +207,7 @@ export function AppView({
 
   // Optimistic local patch, scoped to the slices belonging to `tAppId` (record
   // ids are only unique within one app, so we must not patch across apps).
-  const patchSlices = (tAppId: string, id: number, data: Record<string, unknown>) => {
+  const patchSlices = (tAppId: string, id: string, data: Record<string, unknown>) => {
     const patch = (rows: RecordRow[]) =>
       rows.map((row) => (row.id === id ? { ...row, data } : row));
     if (tAppId === appId) setRecords(patch);
@@ -197,7 +222,7 @@ export function AppView({
   };
 
   // Find a record (for the delete-undo affordance) within `tAppId`'s slices.
-  const findRecord = (tAppId: string, id: number): RecordRow | undefined => {
+  const findRecord = (tAppId: string, id: string): RecordRow | undefined => {
     if (tAppId === appId) {
       const r = records.find((x) => x.id === id);
       if (r) return r;
@@ -233,7 +258,7 @@ export function AppView({
       await editIn(tAppId)(r, fieldId, checked);
     };
 
-  const deleteIn = (tAppId: string) => async (id: number) => {
+  const deleteIn = (tAppId: string) => async (id: string) => {
     const doomed = findRecord(tAppId, id);
     try {
       await deleteRecord(tAppId, id);
@@ -267,7 +292,7 @@ export function AppView({
   });
 
   // The record modal saves/deletes against whichever app it's editing.
-  const onSave = async (data: Record<string, unknown>, id?: number) => {
+  const onSave = async (data: Record<string, unknown>, id?: string) => {
     const tAppId = editing?.app.id ?? appId;
     try {
       if (id != null) await updateRecord(tAppId, id, data);
@@ -332,6 +357,11 @@ export function AppView({
                 onClick: () => setBuilding(true),
               },
               {
+                label: "共有…",
+                icon: <ShareIcon size={15} />,
+                onClick: () => setSharing(true),
+              },
+              {
                 label: "アプリを削除",
                 danger: true,
                 icon: <TrashIcon size={15} />,
@@ -387,6 +417,14 @@ export function AppView({
             />
           </RelationProvider>
         )
+      )}
+
+      {sharing && (
+        <ShareModal
+          app={def}
+          onClose={() => setSharing(false)}
+          onChanged={() => onChanged?.()}
+        />
       )}
 
       {building && (

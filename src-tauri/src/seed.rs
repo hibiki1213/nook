@@ -68,8 +68,8 @@ pub fn seed(conn: &Connection) -> Result<()> {
     ];
     for s in samples {
         conn.execute(
-            &format!("INSERT INTO \"{table}\" (data) VALUES (json(?1))"),
-            [s],
+            &format!("INSERT INTO \"{table}\" (id, data) VALUES (?1, json(?2))"),
+            rusqlite::params![ulid::Ulid::new().to_string(), s],
         )?;
     }
     mark_seeded(conn)?;
@@ -129,8 +129,11 @@ mod tests {
         )
         .unwrap();
         crate::db::ensure_table(&conn, &def).unwrap();
-        conn.execute("INSERT INTO \"d_app_tasks\" (data) VALUES (json('{\"title\":\"x\"}'))", [])
-            .unwrap();
+        conn.execute(
+            "INSERT INTO \"d_app_tasks\" (id, data) VALUES ('01ARZ3NDEKTSV4RRFFQ69G5FAV', json('{\"title\":\"x\"}'))",
+            [],
+        )
+        .unwrap();
 
         // Running seed records the flag but must not add sample rows.
         seed(&conn).unwrap();

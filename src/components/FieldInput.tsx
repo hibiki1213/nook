@@ -8,7 +8,7 @@ import { useRelations } from "./relations";
 import { toTags } from "../lib/format";
 import type { Field } from "../types";
 
-/** Dropdown over the target app's records (value = record id).
+/** Dropdown over the target app's records (value = record id, a ULID string).
  *  Exported for inline cell editing (CellEditor). */
 export function RelationSelect({
   field,
@@ -17,18 +17,15 @@ export function RelationSelect({
 }: {
   field: Field;
   value: unknown;
-  onChange: (v: number | null) => void;
+  onChange: (v: string | null) => void;
 }) {
   const { optionsOf } = useRelations();
   const options = optionsOf(field.app);
-  const current = Number(value);
   return (
     <div className="nk-select">
       <select
-        value={Number.isFinite(current) && value != null ? String(current) : ""}
-        onChange={(e) =>
-          onChange(e.target.value === "" ? null : Number(e.target.value))
-        }
+        value={value == null ? "" : String(value)}
+        onChange={(e) => onChange(e.target.value === "" ? null : e.target.value)}
       >
         <option value="">選択…</option>
         {options.map((o) => (

@@ -12,7 +12,7 @@ export interface ViewHandlers {
   onOpen: (r: RecordRow) => void;
   onToggle: (r: RecordRow, fieldId: string, checked: boolean) => void;
   onCreate: () => void;
-  onDelete: (id: number) => void;
+  onDelete: (id: string) => void;
   onMove: (r: RecordRow, fieldId: string, value: string) => void;
   /** Single-field inline edit (table cells). */
   onEdit: (r: RecordRow, fieldId: string, value: unknown) => void;

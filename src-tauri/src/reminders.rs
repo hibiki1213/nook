@@ -168,9 +168,9 @@ mod tests {
         // One due today, one yesterday, one dateless.
         conn.execute_batch(
             r#"
-            INSERT INTO "d_todo" (data) VALUES (json_object('title','a','due',date('now','localtime')));
-            INSERT INTO "d_todo" (data) VALUES (json_object('title','b','due',date('now','localtime','-1 day')));
-            INSERT INTO "d_todo" (data) VALUES (json_object('title','c'));
+            INSERT INTO "d_todo" (id, data) VALUES ('01ARZ3NDEKTSV4RRFFQ69G5FAV', json_object('title','a','due',date('now','localtime')));
+            INSERT INTO "d_todo" (id, data) VALUES ('01ARZ3NDEKTSV4RRFFQ69G5FAW', json_object('title','b','due',date('now','localtime','-1 day')));
+            INSERT INTO "d_todo" (id, data) VALUES ('01ARZ3NDEKTSV4RRFFQ69G5FAX', json_object('title','c'));
             "#,
         )
         .unwrap();
