@@ -2854,3 +2854,52 @@ body {
   align-items: center;
   gap: var(--space-2);
 }
+
+/* ── "アプリを追加" chooser (AddAppModal) ──────────────────────────────── */
+
+.nk-add-choices {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.nk-add-choice {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-medium);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+.nk-add-choice:hover {
+  border-color: var(--color-accent-9);
+  background: var(--bg-secondary);
+}
+.nk-add-choice-icon {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+  color: var(--color-accent-11);
+}
+.nk-add-choice-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.nk-add-choice-title {
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-sm);
+}
+.nk-add-choice-desc {
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+  line-height: 1.5;
+}

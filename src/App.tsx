@@ -11,6 +11,7 @@ import { AppView } from "./components/AppView";
 import { CommandPalette, type Command } from "./components/CommandPalette";
 import { SettingsModal } from "./components/SettingsModal";
 import { NewAppModal } from "./components/NewAppModal";
+import { AddAppModal } from "./components/AddAppModal";
 import { JoinShareModal } from "./components/ShareModal";
 import {
   EditIcon,
@@ -31,6 +32,8 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [newAppOpen, setNewAppOpen] = useState(false);
   const [joinOpen, setJoinOpen] = useState(false);
+  // The "アプリを追加" chooser (manual create vs join-by-ticket).
+  const [addOpen, setAddOpen] = useState(false);
   // appId → connected peer count (key present = the app is shared).
   const [shared, setShared] = useState<Record<string, number>>({});
   // Set right after 新規アプリ so the freshly mounted AppView opens its builder.
@@ -216,7 +219,7 @@ export default function App() {
         collapsed={!sidebarOpen}
         onToggle={toggleSidebar}
         onOpenSettings={() => setSettingsOpen(true)}
-        onNewApp={() => setNewAppOpen(true)}
+        onNewApp={() => setAddOpen(true)}
       />
       <main className="nk-main">
         {selected ? (
@@ -239,6 +242,19 @@ export default function App() {
         commands={commands}
       />
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      {addOpen && (
+        <AddAppModal
+          onClose={() => setAddOpen(false)}
+          onCreate={() => {
+            setAddOpen(false);
+            setNewAppOpen(true);
+          }}
+          onJoin={() => {
+            setAddOpen(false);
+            setJoinOpen(true);
+          }}
+        />
+      )}
       {newAppOpen && (
         <NewAppModal
           onClose={() => setNewAppOpen(false)}
