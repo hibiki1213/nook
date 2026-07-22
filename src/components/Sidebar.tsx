@@ -93,6 +93,17 @@ export function Sidebar({
           例：「読書記録アプリを作って」
         </div>
         <McpPanel />
+        <div className="nk-kbd-hint">
+          <span>
+            <kbd>⌘K</kbd> コマンドパレット
+          </span>
+          <span>
+            <kbd>⌘N</kbd> 新規レコード
+          </span>
+          <span>
+            <kbd>⌘B</kbd> サイドバー
+          </span>
+        </div>
         <div className="nk-foot-row">
           <ThemeToggle />
           <button
