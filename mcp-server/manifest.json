@@ -2,7 +2,7 @@
   "dxt_version": "0.1",
   "name": "nook",
   "display_name": "Nook",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "description": "Build and edit your personal local Nook apps directly from Claude.",
   "long_description": "Nook is a personal, local-first app builder. This extension lets Claude create apps (fields + views), add fields, and read/write records in your Nook workspace. It talks to the Nook desktop app's localhost API — the app owns your data, which never leaves your machine. The Nook desktop app must be running.",
   "author": {
